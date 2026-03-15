@@ -3,13 +3,37 @@ import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 
-const STEP_DELAY_MS = {
-  dispatching: 2500,
-  assigned: 3500,
-  driver_arriving: 4500,
-  picked_up: 4500,
-  completed: 1000,
+type AgentSpeed = "slow" | "normal" | "fast";
+
+const STEP_DELAY_MS: Record<AgentSpeed, Record<"dispatching" | "assigned" | "driver_arriving" | "picked_up" | "completed", number>> = {
+  slow: {
+    dispatching: 6000,
+    assigned: 8000,
+    driver_arriving: 10000,
+    picked_up: 10000,
+    completed: 2000,
+  },
+  normal: {
+    dispatching: 2500,
+    assigned: 3500,
+    driver_arriving: 4500,
+    picked_up: 4500,
+    completed: 1000,
+  },
+  fast: {
+    dispatching: 1000,
+    assigned: 1500,
+    driver_arriving: 2000,
+    picked_up: 2000,
+    completed: 500,
+  },
 } as const;
+
+const WAIT_DRIVER_RETRY_MS: Record<AgentSpeed, number> = {
+  slow: 8000,
+  normal: 4000,
+  fast: 1500,
+};
 
 const nextStep = {
   dispatching: "assigned",
@@ -27,6 +51,11 @@ const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => 
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+const resolveSpeed = (speed: unknown): AgentSpeed => {
+  if (speed === "slow" || speed === "fast") return speed;
+  return "normal";
 };
 
 async function logRideAgentAction(ctx: any, args: { rideId: any; actionType: string; input: unknown; output: unknown }) {
@@ -60,13 +89,16 @@ async function updateRideStatus(ctx: any, ride: any, status: any, note: string) 
 }
 
 export const startRideAgent = mutation({
-  args: { rideId: v.id("rides") },
+  args: {
+    rideId: v.id("rides"),
+    speed: v.optional(v.union(v.literal("slow"), v.literal("normal"), v.literal("fast"))),
+  },
   handler: async (ctx, args) => {
     const ride = await ctx.db.get(args.rideId);
     if (!ride) throw new Error("Ride not found");
 
     if (ride.agentStatus === "running" && ride.agentRunId) {
-      return { ok: true, alreadyRunning: true, runId: ride.agentRunId };
+      return { ok: true, alreadyRunning: true, runId: ride.agentRunId, speed: resolveSpeed(ride.agentSpeed) };
     }
 
     for (const jobId of ride.agentJobIds ?? []) {
@@ -75,8 +107,9 @@ export const startRideAgent = mutation({
 
     const now = Date.now();
     const runId = `${String(args.rideId)}-${now}`;
+    const speed = resolveSpeed(args.speed ?? ride.agentSpeed);
 
-    const firstJobId = await ctx.scheduler.runAfter(1000, internal.rideAgent.runRideAgentStep, {
+    const firstJobId = await ctx.scheduler.runAfter(Math.max(300, Math.floor(STEP_DELAY_MS[speed].dispatching / 2)), internal.rideAgent.runRideAgentStep, {
       rideId: args.rideId,
       runId,
       step: "dispatching",
@@ -85,6 +118,7 @@ export const startRideAgent = mutation({
     await ctx.db.patch(args.rideId, {
       agentRunId: runId,
       agentStatus: "running",
+      agentSpeed: speed,
       agentJobIds: [String(firstJobId)],
       lastStepAt: now,
       updatedAt: now,
@@ -93,11 +127,11 @@ export const startRideAgent = mutation({
     await logRideAgentAction(ctx, {
       rideId: args.rideId,
       actionType: "start",
-      input: { runId },
+      input: { runId, speed },
       output: { scheduledStep: "dispatching" },
     });
 
-    return { ok: true, runId };
+    return { ok: true, runId, speed };
   },
 });
 
@@ -150,6 +184,8 @@ export const runRideAgentStep = internalMutation({
       return;
     }
 
+    const speed = resolveSpeed(ride.agentSpeed);
+
     if (args.step === "assigned" && !ride.assignedDriverId) {
       const candidates = await ctx.db
         .query("drivers")
@@ -165,7 +201,8 @@ export const runRideAgentStep = internalMutation({
         .sort((a, b) => a.distanceKm - b.distanceKm)[0];
 
       if (!best) {
-        const retryJobId = await ctx.scheduler.runAfter(4000, internal.rideAgent.runRideAgentStep, {
+        const retryMs = WAIT_DRIVER_RETRY_MS[speed];
+        const retryJobId = await ctx.scheduler.runAfter(retryMs, internal.rideAgent.runRideAgentStep, {
           rideId: args.rideId,
           runId: args.runId,
           step: "assigned",
@@ -179,8 +216,8 @@ export const runRideAgentStep = internalMutation({
         await logRideAgentAction(ctx, {
           rideId: args.rideId,
           actionType: "wait_driver",
-          input: { step: args.step },
-          output: { reason: "No online drivers found, retrying in 4s" },
+          input: { step: args.step, speed },
+          output: { reason: `No online drivers found, retrying in ${retryMs}ms` },
         });
 
         return;
@@ -193,7 +230,7 @@ export const runRideAgentStep = internalMutation({
       await logRideAgentAction(ctx, {
         rideId: args.rideId,
         actionType: "assign_driver",
-        input: { step: args.step },
+        input: { step: args.step, speed },
         output: { driverId: best.driverId, distanceKm: Number(best.distanceKm.toFixed(2)) },
       });
     }
@@ -220,7 +257,7 @@ export const runRideAgentStep = internalMutation({
     await logRideAgentAction(ctx, {
       rideId: args.rideId,
       actionType: "step",
-      input: { step: args.step },
+      input: { step: args.step, speed },
       output: { status: args.step === "dispatching" ? "dispatching_checked" : args.step },
     });
 
@@ -241,13 +278,13 @@ export const runRideAgentStep = internalMutation({
       await logRideAgentAction(ctx, {
         rideId: args.rideId,
         actionType: "finish",
-        input: { runId: args.runId },
+        input: { runId: args.runId, speed },
         output: { finalStatus: "completed" },
       });
       return;
     }
 
-    const nextJobId = await ctx.scheduler.runAfter(STEP_DELAY_MS[args.step], internal.rideAgent.runRideAgentStep, {
+    const nextJobId = await ctx.scheduler.runAfter(STEP_DELAY_MS[speed][args.step], internal.rideAgent.runRideAgentStep, {
       rideId: args.rideId,
       runId: args.runId,
       step: upcomingStep,

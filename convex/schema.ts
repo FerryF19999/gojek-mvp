@@ -32,6 +32,7 @@ export default defineSchema({
     customerPhone: v.string(),
     agentRunId: v.optional(v.string()),
     agentStatus: v.union(v.literal("running"), v.literal("stopped"), v.literal("completed")),
+    agentSpeed: v.optional(v.union(v.literal("slow"), v.literal("normal"), v.literal("fast"))),
     agentJobIds: v.array(v.string()),
     lastStepAt: v.optional(v.number()),
     pickup: v.object({

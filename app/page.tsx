@@ -22,6 +22,8 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [supportScenario, setSupportScenario] = useState<"driver_late" | "customer_cancel" | "refund_request">("driver_late");
   const [isQrisLoading, setIsQrisLoading] = useState(false);
+  const [agentSpeed, setAgentSpeed] = useState<"slow" | "normal" | "fast">("normal");
+  const [autoRunOnCreate, setAutoRunOnCreate] = useState(true);
   const [selectNewestOnNextSync, setSelectNewestOnNextSync] = useState(false);
 
   const connectionState = useConvexConnectionState();
@@ -42,6 +44,7 @@ export default function DashboardPage() {
   const seedDemo = useMutation(api.seed.seedDemo);
   const startRideAgent = useMutation(api.rideAgent.startRideAgent);
   const stopRideAgent = useMutation(api.rideAgent.stopRideAgent);
+  const markPaidDemo = useMutation(api.payments.markPaidDemo);
 
   const createPaymentQris = async ({ rideId }: { rideId: string }) => {
     const res = await fetch("/api/payments/qris", {
@@ -59,11 +62,21 @@ export default function DashboardPage() {
     return rides.filter((r) => r.code.toLowerCase().includes(q) || r.customerName.toLowerCase().includes(q));
   }, [rides, search]);
 
+  const latestPayment = useMemo(() => {
+    if (!selectedRide?.payments?.length) return null;
+    return [...selectedRide.payments].sort((a, b) => b.createdAt - a.createdAt)[0];
+  }, [selectedRide]);
+
   useEffect(() => {
     if (!selectNewestOnNextSync || rides.length === 0) return;
     setSelectedRideId(rides[0]?._id ?? null);
     setSelectNewestOnNextSync(false);
   }, [rides, selectNewestOnNextSync]);
+
+  useEffect(() => {
+    if (!selectedRide?.ride?.agentSpeed) return;
+    setAgentSpeed(selectedRide.ride.agentSpeed);
+  }, [selectedRide?.ride?.agentSpeed]);
 
   const handleCreateRide = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -92,8 +105,19 @@ export default function DashboardPage() {
       } else {
         setSelectNewestOnNextSync(true);
       }
+
+      if (rideId && autoRunOnCreate) {
+        const out = await startRideAgent({ rideId, speed: agentSpeed });
+        if (out?.alreadyRunning) {
+          toast.success(`Ride created. Agent already running (${out?.speed || agentSpeed}).`);
+        } else {
+          toast.success(`Ride created and agent started (${out?.speed || agentSpeed}).`);
+        }
+      } else {
+        toast.success("Ride created successfully");
+      }
+
       e.currentTarget.reset();
-      toast.success("Ride created successfully");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create ride");
     }
@@ -137,6 +161,14 @@ export default function DashboardPage() {
                 <Input name="dropoffLat" type="number" step="any" required defaultValue={-6.22} />
                 <Input name="dropoffLng" type="number" step="any" required defaultValue={106.84} />
               </div>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={autoRunOnCreate}
+                  onChange={(e) => setAutoRunOnCreate(e.target.checked)}
+                />
+                Auto-run agent
+              </label>
               <Button type="submit" className="w-full">Create ride</Button>
             </form>
           </CardContent>
@@ -194,13 +226,15 @@ export default function DashboardPage() {
             <RideDetail
               ride={selectedRide.ride}
               driverName={selectedRide.driver?.userName || selectedRide.ride.assignedDriverId || "-"}
+              agentSpeed={agentSpeed}
+              onSpeedChange={setAgentSpeed}
               onStartAgent={async () => {
                 try {
-                  const out = await startRideAgent({ rideId: selectedRide.ride._id });
+                  const out = await startRideAgent({ rideId: selectedRide.ride._id, speed: agentSpeed });
                   if (out?.alreadyRunning) {
-                    toast.success("Ride agent already running");
+                    toast.success(`Ride agent already running (${out?.speed || selectedRide.ride.agentSpeed || agentSpeed})`);
                   } else {
-                    toast.success("Ride agent started");
+                    toast.success(`Ride agent started (${out?.speed || agentSpeed})`);
                   }
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Failed to start ride agent");
@@ -246,15 +280,29 @@ export default function DashboardPage() {
               <PaymentPanel
                 loading={isQrisLoading}
                 paymentStatus={selectedRide.ride.paymentStatus}
+                providerRef={latestPayment?.providerRef}
+                qrString={latestPayment?.qrString}
                 onGenerate={async () => {
                   setIsQrisLoading(true);
                   try {
                     const out = await createPaymentQris({ rideId: String(selectedRide.ride._id) });
-                    toast.success(`QRIS stub created: ${out?.id || "ok"}`);
+                    toast.success(`QRIS generated: ${out?.id || "ok"}`);
                   } catch (error) {
                     toast.error(error instanceof Error ? error.message : "Failed to create QRIS");
                   } finally {
                     setIsQrisLoading(false);
+                  }
+                }}
+                onMarkPaidDemo={async () => {
+                  try {
+                    const out = await markPaidDemo({ rideId: selectedRide.ride._id });
+                    if (out?.alreadyPaid) {
+                      toast.success("Payment already marked as paid");
+                    } else {
+                      toast.success("Payment marked as paid (demo)");
+                    }
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Failed to mark payment paid");
                   }
                 }}
               />
