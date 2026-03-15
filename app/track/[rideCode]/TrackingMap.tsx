@@ -241,12 +241,21 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
   const [showConfetti, setShowConfetti] = useState(false);
   const completedRef = useRef(false);
 
-  // Initialize simulated position from actual driver location
+  // Sync simulated position with actual driver location (from server)
+  const lastServerLat = useRef<number | null>(null);
+  const lastServerLng = useRef<number | null>(null);
   useEffect(() => {
-    if (ride.driver && !simPos) {
-      setSimPos([ride.driver.lastLocation.lat, ride.driver.lastLocation.lng]);
+    if (ride.driver) {
+      const sLat = ride.driver.lastLocation.lat;
+      const sLng = ride.driver.lastLocation.lng;
+      // Update simPos whenever server location changes
+      if (sLat !== lastServerLat.current || sLng !== lastServerLng.current) {
+        lastServerLat.current = sLat;
+        lastServerLng.current = sLng;
+        setSimPos([sLat, sLng]);
+      }
     }
-  }, [ride.driver, simPos]);
+  }, [ride.driver?.lastLocation?.lat, ride.driver?.lastLocation?.lng]);
 
   // Client-side movement simulation
   useEffect(() => {
