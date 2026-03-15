@@ -85,7 +85,12 @@ export const driverArriveAtPickup = mutation({
     if (!ride) throw new Error("Ride not found");
     if (ride.assignedDriverId !== args.driverId) throw new Error("You are not assigned to this ride");
 
-    const allowedStatuses = ["assigned", "driver_arriving"];
+    // Idempotent: already at or past picked_up
+    if (["picked_up", "completed"].includes(ride.status)) {
+      return { ok: true, alreadyArrived: true, status: ride.status };
+    }
+
+    const allowedStatuses = ["assigned", "awaiting_driver_response", "driver_arriving"];
     if (!allowedStatuses.includes(ride.status)) {
       throw new Error(`Cannot arrive: ride status is '${ride.status}', expected one of: ${allowedStatuses.join(", ")}`);
     }
@@ -93,6 +98,7 @@ export const driverArriveAtPickup = mutation({
     const now = Date.now();
     await ctx.db.patch(ride._id, {
       status: "picked_up",
+      driverResponseStatus: "accepted",
       updatedAt: now,
       timeline: [
         ...ride.timeline,
@@ -100,7 +106,7 @@ export const driverArriveAtPickup = mutation({
       ],
     });
 
-    return { ok: true, status: "picked_up" };
+    return { ok: true, alreadyArrived: false, status: "picked_up" };
   },
 });
 
@@ -116,8 +122,15 @@ export const driverCompleteRide = mutation({
     if (!ride) throw new Error("Ride not found");
     if (ride.assignedDriverId !== args.driverId) throw new Error("You are not assigned to this ride");
 
-    if (ride.status !== "picked_up") {
-      throw new Error(`Cannot complete: ride status is '${ride.status}', expected 'picked_up'`);
+    // Idempotent: already completed
+    if (ride.status === "completed") {
+      return { ok: true, alreadyCompleted: true, status: "completed" };
+    }
+
+    // Allow complete from picked_up OR driver_arriving (flexible for AI agents)
+    const allowedStatuses = ["picked_up", "driver_arriving"];
+    if (!allowedStatuses.includes(ride.status)) {
+      throw new Error(`Cannot complete: ride status is '${ride.status}', expected one of: ${allowedStatuses.join(", ")}`);
     }
 
     const now = Date.now();
@@ -125,6 +138,7 @@ export const driverCompleteRide = mutation({
     // Complete the ride
     await ctx.db.patch(ride._id, {
       status: "completed",
+      agentStatus: "completed",
       updatedAt: now,
       timeline: [
         ...ride.timeline,
@@ -138,7 +152,7 @@ export const driverCompleteRide = mutation({
       lastActiveAt: now,
     });
 
-    return { ok: true, status: "completed" };
+    return { ok: true, alreadyCompleted: false, status: "completed" };
   },
 });
 

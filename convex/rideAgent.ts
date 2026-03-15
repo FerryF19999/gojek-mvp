@@ -74,9 +74,17 @@ async function logRideAgentAction(ctx: any, args: { rideId: any; actionType: str
   });
 }
 
+const STATUS_ORDER = ["created", "awaiting_payment", "dispatching", "assigned", "awaiting_driver_response", "driver_arriving", "picked_up", "completed"] as const;
+
+function statusIndex(s: string) {
+  const idx = STATUS_ORDER.indexOf(s as any);
+  return idx === -1 ? 999 : idx;
+}
+
 async function updateRideStatus(ctx: any, ride: any, status: any, note: string) {
   const now = Date.now();
-  if (ride.status === status) {
+  // Don't regress status — if ride is already at or past this status, skip
+  if (statusIndex(ride.status) >= statusIndex(status)) {
     await ctx.db.patch(ride._id, {
       lastStepAt: now,
       updatedAt: now,
