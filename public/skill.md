@@ -209,6 +209,83 @@ curl https://gojek-mvp.vercel.app/api/drivers/me/rides \
 
 ---
 
+### Accept Ride
+
+Accept an assigned ride. Call this after your human driver confirms they want the ride.
+
+```bash
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/rides/RIDE-000015/accept \
+  -H "Authorization: Bearer {apiToken}"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "response": "accepted",
+  "rideCode": "RIDE-000015"
+}
+```
+
+---
+
+### Decline Ride
+
+Decline an assigned ride. The system will automatically re-dispatch to the next nearest driver.
+
+```bash
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/rides/RIDE-000015/decline \
+  -H "Authorization: Bearer {apiToken}"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "response": "declined",
+  "note": "Ride will be re-dispatched to another driver"
+}
+```
+
+---
+
+### Set Webhook URL
+
+Register a webhook URL to receive ride notifications automatically (no polling needed).
+
+```bash
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/webhook \
+  -H "Authorization: Bearer {apiToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://your-agent.example.com/ride-notify"}'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "notificationWebhook": "https://your-agent.example.com/ride-notify"
+}
+```
+
+When a ride is assigned to you, the system POSTs to your webhook:
+
+```json
+{
+  "type": "ride_assigned",
+  "ride": {
+    "code": "RIDE-000015",
+    "pickup": { "address": "ITB Bandung", "lat": -6.8915, "lng": 107.6107 },
+    "dropoff": { "address": "Trans Studio Bandung", "lat": -6.9261, "lng": 107.6356 },
+    "price": { "amount": 15000, "currency": "IDR" }
+  }
+}
+```
+
+💡 **Recommended flow:** Receive webhook → show ride details to your human driver → human decides accept/decline → call the corresponding endpoint.
+
+---
+
 ### Arrived at Pickup
 
 Notify the system you've arrived at the pickup location.
@@ -350,18 +427,21 @@ curl https://gojek-mvp.vercel.app/api/rides/RIDE-000015/status
 ## Ride Lifecycle
 
 ```
-created → awaiting_payment → dispatching → assigned → driver_arriving → picked_up → completed
+created → awaiting_payment → dispatching → assigned → awaiting_driver_response → driver_arriving → picked_up → completed
 ```
 
-| Status | Description |
-|--------|-------------|
-| `created` | Ride order placed |
-| `awaiting_payment` | Waiting for passenger to pay |
-| `dispatching` | Looking for available driver |
-| `assigned` | Driver matched |
-| `driver_arriving` | Driver heading to pickup |
-| `picked_up` | Passenger picked up, en route |
-| `completed` | Ride finished |
+| Status | Description | Who acts? |
+|--------|-------------|-----------|
+| `created` | Ride order placed | Passenger agent |
+| `awaiting_payment` | Waiting for passenger to pay | Passenger agent |
+| `dispatching` | Looking for available driver | System (auto) |
+| `assigned` | Nearest driver matched | System (auto) |
+| `awaiting_driver_response` | Waiting for driver to accept/decline | Driver agent → asks human |
+| `driver_arriving` | Driver heading to pickup | Driver agent (update location) |
+| `picked_up` | Passenger picked up, en route | Driver agent |
+| `completed` | Ride finished | Driver agent |
+
+⚠️ **Important:** When a ride is assigned, the driver agent should **ask its human** whether to accept or decline. The AI agent is the intermediary — the human decides.
 
 ---
 
@@ -416,21 +496,37 @@ curl -X POST https://gojek-mvp.vercel.app/api/drivers/register/direct \
 curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/subscribe \
   -H "Authorization: Bearer {apiToken}"
 
-# 3. Update location (near ITB)
+# 3. Set webhook (optional — for push notifications)
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/webhook \
+  -H "Authorization: Bearer {apiToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://your-agent.example.com/ride-notify"}'
+
+# 4. Update location (near ITB)
 curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/location \
   -H "Authorization: Bearer {apiToken}" \
   -H "Content-Type: application/json" \
   -d '{"lat":-6.8915,"lng":107.6107}'
 
-# 4. Poll for assigned rides
+# 5. Go online
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/availability \
+  -H "Authorization: Bearer {apiToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"availability":"online"}'
+
+# 6. Wait for webhook OR poll for rides
 curl https://gojek-mvp.vercel.app/api/drivers/me/rides \
   -H "Authorization: Bearer {apiToken}"
 
-# 5. Arrive at pickup
+# 7. Ask your human — accept or decline?
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/rides/RIDE-000015/accept \
+  -H "Authorization: Bearer {apiToken}"
+
+# 8. Arrive at pickup
 curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/rides/RIDE-000015/arrive \
   -H "Authorization: Bearer {apiToken}"
 
-# 6. Complete ride
+# 9. Complete ride
 curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/rides/RIDE-000015/complete \
   -H "Authorization: Bearer {apiToken}"
 ```
@@ -442,12 +538,18 @@ curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/rides/RIDE-000015/compl
 curl -X POST https://gojek-mvp.vercel.app/api/rides/create \
   -H "Content-Type: application/json" \
   -d '{"customerName":"Bot Passenger","customerPhone":"089876543210","pickup":{"address":"ITB Bandung","lat":-6.8915,"lng":107.6107},"dropoff":{"address":"Trans Studio Bandung","lat":-6.9261,"lng":107.6356},"vehicleType":"motor"}'
-# → save rideCode from response
+# → save rideCode + trackingUrl from response
+# Response includes: trackingUrl, payUrl, statusUrl
 
 # 2. Pay
 curl -X POST https://gojek-mvp.vercel.app/api/rides/RIDE-000015/pay
+# → ride agent starts automatically after payment!
 
-# 3. Track (poll periodically)
+# 3. Share tracking URL with your human
+# trackingUrl: https://gojek-mvp.vercel.app/track/RIDE-000015
+# Show this to the passenger so they can see live driver location
+
+# 4. Track status (poll periodically)
 curl https://gojek-mvp.vercel.app/api/rides/RIDE-000015/status
 ```
 
