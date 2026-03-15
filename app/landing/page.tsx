@@ -88,9 +88,9 @@ export default function LandingPage() {
           </Link>
           <div className="hidden sm:flex items-center gap-6 text-sm text-white/60">
             <Link href="/driver/signup" className="hover:text-white transition-colors">Driver</Link>
+            <Link href="/ride" className="hover:text-white transition-colors">Ride</Link>
             <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
             <Link href="/skill.md" className="hover:text-white transition-colors">skill.md</Link>
-            <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
           </div>
           <Link href="/driver/signup">
             <Button size="sm" className="bg-green-600 hover:bg-green-500 text-white border-0 rounded-full px-5 text-sm font-medium">
@@ -402,9 +402,9 @@ export default function LandingPage() {
               <span className="font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">GoRide AI</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40">
+              <Link href="/driver/signup" className="hover:text-white transition-colors">Driver</Link>
+              <Link href="/ride" className="hover:text-white transition-colors">Ride</Link>
               <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
-              <Link href="/driver/signup" className="hover:text-white transition-colors">Driver Signup</Link>
-              <Link href="/docs" className="hover:text-white transition-colors">API Docs</Link>
               <Link href="/skill.md" className="hover:text-white transition-colors">skill.md</Link>
             </div>
           </div>
