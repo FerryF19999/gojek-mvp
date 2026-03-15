@@ -146,7 +146,7 @@ export default function LandingPage() {
                   🏍️ Jadi Driver
                 </Button>
               </Link>
-              <Link href="/docs">
+              <Link href="/ride">
                 <Button size="lg" variant="outline" className="rounded-full px-8 text-base font-semibold h-12 border-white/10 bg-white/5 hover:bg-white/10 text-white">
                   🧑 Pesan Ride
                 </Button>
