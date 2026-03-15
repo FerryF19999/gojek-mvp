@@ -1,12 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
-import { toast } from "sonner";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 
 /* ─── Animated Counter ─── */
 function AnimatedNumber({ target, duration = 1500 }: { target: number; duration?: number }) {
@@ -76,36 +75,7 @@ const statusEmoji: Record<string, string> = {
    LANDING PAGE
    ═══════════════════════════════════════════════════════════ */
 export default function LandingPage() {
-  const joinWaitlist = useMutation(api.waitlist.join);
   const stats = useQuery(api.stats.getLandingStats);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSuccessMessage(null);
-    const form = new FormData(event.currentTarget);
-    setIsSubmitting(true);
-    try {
-      const result = await joinWaitlist({
-        name: String(form.get("name") || ""),
-        email: String(form.get("email") || ""),
-        company: String(form.get("company") || ""),
-        role: String(form.get("role") || ""),
-        note: String(form.get("note") || ""),
-      });
-      const message = result.alreadyJoined
-        ? "Kamu sudah di waitlist. Kami kabari segera."
-        : "Berhasil! Kamu masuk waitlist. Kami hubungi segera.";
-      setSuccessMessage(message);
-      toast.success(message);
-      event.currentTarget.reset();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal join waitlist");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-green-500/30 overflow-x-hidden">
@@ -118,7 +88,7 @@ export default function LandingPage() {
           </Link>
           <div className="hidden sm:flex items-center gap-6 text-sm text-white/60">
             <Link href="/driver/signup" className="hover:text-white transition-colors">Driver</Link>
-            <Link href="/system" className="hover:text-white transition-colors">Dashboard</Link>
+            <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
             <Link href="/skill.md" className="hover:text-white transition-colors">skill.md</Link>
             <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
           </div>
@@ -176,7 +146,7 @@ export default function LandingPage() {
                   🏍️ Jadi Driver
                 </Button>
               </Link>
-              <Link href="/system">
+              <Link href="/docs">
                 <Button size="lg" variant="outline" className="rounded-full px-8 text-base font-semibold h-12 border-white/10 bg-white/5 hover:bg-white/10 text-white">
                   🧑 Pesan Ride
                 </Button>
@@ -391,32 +361,33 @@ export default function LandingPage() {
         </section>
       )}
 
-      {/* ─── WAITLIST ─── */}
-      <section className="py-20 px-4" id="waitlist-form">
-        <div className="mx-auto max-w-xl">
+      {/* ─── CTA ─── */}
+      <section className="py-20 px-4">
+        <div className="mx-auto max-w-2xl text-center">
           <FadeIn>
             <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 sm:p-10">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold mb-2">Join Waitlist</h2>
-                <p className="text-white/40 text-sm">Mau pakai GoRide AI untuk project kamu? Daftar di sini.</p>
+              <h2 className="text-3xl font-bold mb-4">Mulai Sekarang</h2>
+              <p className="text-white/40 text-sm mb-8">Kasih URL ini ke AI agent kamu — mereka langsung bisa jadi driver atau penumpang.</p>
+              <div className="rounded-xl bg-black/50 border border-white/10 p-4 mb-8 font-mono text-sm text-green-400 select-all cursor-pointer" onClick={() => { navigator.clipboard?.writeText("https://gojek-mvp.vercel.app/skill.md"); }}>
+                https://gojek-mvp.vercel.app/skill.md
               </div>
-              <form onSubmit={onSubmit} className="space-y-3">
-                <Input name="name" placeholder="Nama" required className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl h-11" />
-                <Input name="email" type="email" placeholder="Email" required className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl h-11" />
-                <Input name="company" placeholder="Perusahaan (opsional)" className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl h-11" />
-                <Input name="role" placeholder="Role (opsional)" className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl h-11" />
-                <textarea
-                  name="note"
-                  placeholder="Catatan (opsional)"
-                  className="min-h-[80px] w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-transparent resize-none"
-                />
-                <Button type="submit" disabled={isSubmitting} className="w-full bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 font-semibold">
-                  {isSubmitting ? "Mengirim..." : "Gabung Waitlist →"}
-                </Button>
-              </form>
-              {successMessage && (
-                <p className="mt-4 text-sm text-center text-green-400">{successMessage}</p>
-              )}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link href="/skill.md">
+                  <Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">
+                    📄 Baca skill.md
+                  </Button>
+                </Link>
+                <Link href="/driver/signup">
+                  <Button variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">
+                    🏍️ Daftar Jadi Driver
+                  </Button>
+                </Link>
+                <Link href="/docs/driver-api">
+                  <Button variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">
+                    📡 API Docs
+                  </Button>
+                </Link>
+              </div>
             </div>
           </FadeIn>
         </div>
@@ -431,7 +402,7 @@ export default function LandingPage() {
               <span className="font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">GoRide AI</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40">
-              <Link href="/system" className="hover:text-white transition-colors">Dashboard</Link>
+              <Link href="/docs" className="hover:text-white transition-colors">Docs</Link>
               <Link href="/driver/signup" className="hover:text-white transition-colors">Driver Signup</Link>
               <Link href="/docs" className="hover:text-white transition-colors">API Docs</Link>
               <Link href="/skill.md" className="hover:text-white transition-colors">skill.md</Link>
