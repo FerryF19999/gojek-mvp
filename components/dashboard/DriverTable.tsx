@@ -45,6 +45,15 @@ export function DriverTable({
                   {d.subscriptionBadge}
                 </Badge>
                 {d.subscriptionPlan ? <Badge variant="secondary">Plan: {d.subscriptionPlan}</Badge> : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => navigator.clipboard.writeText(String(d._id))}
+                  title="Copy driverId"
+                >
+                  Copy ID
+                </Button>
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
                 {d.vehicleType} • {d.lastLocation.lat.toFixed(4)}, {d.lastLocation.lng.toFixed(4)}
