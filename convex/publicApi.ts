@@ -3,6 +3,7 @@
  * No ops key required — auth via Bearer token or ride code.
  */
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { DRIVER_SUBSCRIPTION_PLAN, DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY } from "../lib/pricing";
 
@@ -286,6 +287,25 @@ export const payRideByCode = mutation({
         provider: "demo",
         createdAt: now,
         updatedAt: now,
+      });
+    }
+
+    // Auto-start ride agent if not already running
+    if (ride.agentStatus !== "running") {
+      const runId = `${String(ride._id)}-${now}`;
+      const speed = ride.agentSpeed ?? "normal";
+      const firstJobId = await ctx.scheduler.runAfter(500, internal.rideAgent.runRideAgentStep, {
+        rideId: ride._id,
+        runId,
+        step: "dispatching",
+      });
+
+      await ctx.db.patch(ride._id, {
+        agentRunId: runId,
+        agentStatus: "running",
+        agentSpeed: speed,
+        agentJobIds: [String(firstJobId)],
+        lastStepAt: now,
       });
     }
 
