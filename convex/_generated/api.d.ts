@@ -11,7 +11,9 @@
 import type * as agentActions from "../agentActions.js";
 import type * as dispatch from "../dispatch.js";
 import type * as driverSignup from "../driverSignup.js";
+import type * as driverView from "../driverView.js";
 import type * as drivers from "../drivers.js";
+import type * as geo from "../geo.js";
 import type * as geocodes from "../geocodes.js";
 import type * as http from "../http.js";
 import type * as payments from "../payments.js";
@@ -32,7 +34,9 @@ declare const fullApi: ApiFromModules<{
   agentActions: typeof agentActions;
   dispatch: typeof dispatch;
   driverSignup: typeof driverSignup;
+  driverView: typeof driverView;
   drivers: typeof drivers;
+  geo: typeof geo;
   geocodes: typeof geocodes;
   http: typeof http;
   payments: typeof payments;

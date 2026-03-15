@@ -272,3 +272,45 @@ export const getRideOps = query({
     };
   },
 });
+
+// PUBLIC query — no auth required. Used by the rider tracking page.
+export const getRideByCode = query({
+  args: { code: v.string() },
+  handler: async (ctx, args) => {
+    const ride = await ctx.db
+      .query("rides")
+      .withIndex("by_code", (q) => q.eq("code", args.code))
+      .unique();
+    if (!ride) return null;
+
+    let driver: {
+      name: string;
+      vehicleType: string;
+      lastLocation: { lat: number; lng: number; updatedAt: number };
+    } | null = null;
+
+    if (ride.assignedDriverId) {
+      const driverDoc = await ctx.db.get(ride.assignedDriverId);
+      if (driverDoc) {
+        const userDoc = await ctx.db.get(driverDoc.userId);
+        driver = {
+          name: userDoc?.name ?? "Driver",
+          vehicleType: driverDoc.vehicleType,
+          lastLocation: driverDoc.lastLocation,
+        };
+      }
+    }
+
+    return {
+      _id: ride._id,
+      code: ride.code,
+      status: ride.status,
+      customerName: ride.customerName,
+      pickup: ride.pickup,
+      dropoff: ride.dropoff,
+      vehicleType: ride.vehicleType,
+      price: ride.price,
+      driver,
+    };
+  },
+});
