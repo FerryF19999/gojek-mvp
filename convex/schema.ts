@@ -126,8 +126,8 @@ export default defineSchema({
 
   payments: defineTable({
     rideId: v.id("rides"),
-    provider: v.union(v.literal("midtrans"), v.literal("xendit")),
-    providerRef: v.string(),
+    provider: v.union(v.literal("midtrans"), v.literal("xendit"), v.literal("demo")),
+    providerRef: v.optional(v.string()),
     qrisUrl: v.optional(v.string()),
     qrString: v.optional(v.string()),
     checkoutUrl: v.optional(v.string()),

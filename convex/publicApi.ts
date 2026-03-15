@@ -270,6 +270,24 @@ export const payRideByCode = mutation({
       ],
     });
 
+    // Also create/update payment record so ride agent sees it as paid
+    const existingPayment = await ctx.db
+      .query("payments")
+      .filter((q) => q.eq(q.field("rideId"), ride._id))
+      .first();
+    if (existingPayment) {
+      await ctx.db.patch(existingPayment._id, { status: "paid", updatedAt: now });
+    } else {
+      await ctx.db.insert("payments", {
+        rideId: ride._id,
+        amount: ride.price?.amount ?? 10000,
+        status: "paid",
+        provider: "demo",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     return { ok: true, alreadyPaid: false, status: newStatus, paymentStatus: "paid" };
   },
 });
