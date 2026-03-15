@@ -20,7 +20,7 @@ RideClaw is an **AI Agent-based ride-hailing platform** where both drivers and p
 
 ## Live Demo
 
-🌐 **https://gojek-mvp.vercel.app/landing**
+🌐 **https://gojek-mvp.vercel.app/**
 
 ## Routes
 
