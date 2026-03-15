@@ -46,10 +46,14 @@ export default function DriverApiDocsPage() {
   const nav = [
     { id: "overview", label: "Overview" },
     { id: "registration", label: "Registration Flow" },
+    { id: "direct-register", label: "Direct Registration (No OTP)" },
+    { id: "subscribe", label: "Self-Subscribe" },
     { id: "webhook", label: "Set Webhook" },
     { id: "location-availability", label: "Location & Availability" },
     { id: "webhook-payload", label: "Webhook Payload" },
     { id: "accept-decline", label: "Accept/Decline Ride" },
+    { id: "driver-ride-actions", label: "Arrive & Complete Ride" },
+    { id: "passenger-api", label: "Passenger API" },
     { id: "full-examples", label: "Full Examples" },
   ];
 
@@ -187,11 +191,70 @@ export default function DriverApiDocsPage() {
               </p>
             </div>
 
-            <h3 className="text-white font-semibold mb-2 mt-6">Step 3: Activate Subscription (Demo)</h3>
+            <h3 className="text-white font-semibold mb-2 mt-6">Step 3: Activate Subscription</h3>
             <p className="text-sm text-zinc-400 mb-2">
-              In the demo environment, use the ops API to activate the subscription. In production, this would go
-              through a payment flow.
+              Call the self-subscribe endpoint to activate your subscription (see <a href="#subscribe" className="text-green-400">Self-Subscribe</a> section below).
             </p>
+          </Section>
+
+          {/* Direct Registration */}
+          <Section id="direct-register" title="2b. Direct Registration (No OTP)">
+            <p className="mb-4 text-sm text-zinc-400">
+              Skip the OTP flow entirely. Register and get your API token in a single call — perfect for AI agents.
+            </p>
+            <p className="mb-2 text-sm">
+              <Badge color="green">POST</Badge>{" "}
+              <code className="text-zinc-300">/api/drivers/register/direct</code> — No auth required
+            </p>
+            <CodeBlock title="curl — Direct Register">{`curl -X POST ${BASE_URL}/api/drivers/register/direct \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "fullName": "AI Driver Bot",
+    "phone": "+628123456789",
+    "vehicleType": "motor",
+    "vehicleBrand": "Honda",
+    "vehicleModel": "Vario 160",
+    "vehiclePlate": "B1234XYZ",
+    "licenseNumber": "SIM-001",
+    "city": "Jakarta"
+  }'`}</CodeBlock>
+            <CodeBlock title="Response">{`{
+  "success": true,
+  "driver": {
+    "driverId": "k57abc123...",
+    "apiToken": "a1b2c3d4-e5f6-...",
+    "status": "pending_payment",
+    "alreadyExists": false
+  }
+}`}</CodeBlock>
+            <div className="p-4 rounded-lg border border-green-800 bg-green-950/30 mt-4">
+              <p className="text-green-400 text-sm">
+                💡 After registration, call <code>/api/drivers/me/subscribe</code> to activate your subscription, then go online!
+              </p>
+            </div>
+          </Section>
+
+          {/* Self-Subscribe */}
+          <Section id="subscribe" title="2c. Self-Subscribe">
+            <p className="mb-4 text-sm text-zinc-400">
+              Activate your subscription (demo mode — instant activation, 30 days). Required before you can receive rides.
+            </p>
+            <p className="mb-2 text-sm">
+              <Badge color="green">POST</Badge>{" "}
+              <code className="text-zinc-300">/api/drivers/me/subscribe</code> —{" "}
+              <Badge color="yellow">Bearer Token</Badge>
+            </p>
+            <CodeBlock title="curl — Subscribe">{`curl -X POST ${BASE_URL}/api/drivers/me/subscribe \\
+  -H "Authorization: Bearer YOUR_DRIVER_TOKEN"`}</CodeBlock>
+            <CodeBlock title="Response">{`{
+  "success": true,
+  "subscription": {
+    "status": "active",
+    "plan": "basic_monthly",
+    "expiresAt": "2026-04-14T18:00:00.000Z"
+  },
+  "alreadySubscribed": false
+}`}</CodeBlock>
           </Section>
 
           {/* 3. Set Webhook */}
@@ -304,8 +367,124 @@ export default function DriverApiDocsPage() {
             </div>
           </Section>
 
-          {/* 7. Full Examples */}
-          <Section id="full-examples" title="7. Full Example — End to End">
+          {/* Driver Ride Actions */}
+          <Section id="driver-ride-actions" title="7. Driver Ride Actions — Arrive & Complete">
+            <p className="mb-4 text-sm text-zinc-400">
+              After accepting a ride, use these endpoints to progress through the ride lifecycle.
+            </p>
+
+            <h3 className="text-white font-semibold mb-2">Arrive at Pickup</h3>
+            <p className="mb-2 text-sm">
+              <Badge color="green">POST</Badge>{" "}
+              <code className="text-zinc-300">/api/drivers/me/rides/RIDE_CODE/arrive</code> —{" "}
+              <Badge color="yellow">Bearer Token</Badge>
+            </p>
+            <p className="mb-2 text-sm text-zinc-400">
+              Marks the ride as <code className="text-green-400">picked_up</code> (driver arrived, passenger gets in).
+              Ride must be in <code>assigned</code> or <code>driver_arriving</code> status.
+            </p>
+            <CodeBlock title="curl — Arrive at Pickup">{`curl -X POST ${BASE_URL}/api/drivers/me/rides/RIDE-000042/arrive \\
+  -H "Authorization: Bearer YOUR_DRIVER_TOKEN"`}</CodeBlock>
+            <CodeBlock title="Response">{`{ "success": true, "status": "picked_up" }`}</CodeBlock>
+
+            <h3 className="text-white font-semibold mb-2 mt-6">Complete Ride</h3>
+            <p className="mb-2 text-sm">
+              <Badge color="green">POST</Badge>{" "}
+              <code className="text-zinc-300">/api/drivers/me/rides/RIDE_CODE/complete</code> —{" "}
+              <Badge color="yellow">Bearer Token</Badge>
+            </p>
+            <p className="mb-2 text-sm text-zinc-400">
+              Marks the ride as <code className="text-green-400">completed</code> and sets driver back to <code>online</code>.
+              Ride must be in <code>picked_up</code> status.
+            </p>
+            <CodeBlock title="curl — Complete Ride">{`curl -X POST ${BASE_URL}/api/drivers/me/rides/RIDE-000042/complete \\
+  -H "Authorization: Bearer YOUR_DRIVER_TOKEN"`}</CodeBlock>
+            <CodeBlock title="Response">{`{ "success": true, "status": "completed" }`}</CodeBlock>
+          </Section>
+
+          {/* Passenger API */}
+          <Section id="passenger-api" title="8. Passenger API (Public)">
+            <p className="mb-4 text-sm text-zinc-400">
+              These endpoints are open (no auth) — the ride code acts as an access token.
+              Designed for AI agents to create and manage rides on behalf of passengers.
+            </p>
+
+            <h3 className="text-white font-semibold mb-2">Create a Ride</h3>
+            <p className="mb-2 text-sm">
+              <Badge color="green">POST</Badge>{" "}
+              <code className="text-zinc-300">/api/rides/create</code> — No auth required
+            </p>
+            <CodeBlock title="curl — Create Ride">{`curl -X POST ${BASE_URL}/api/rides/create \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "customerName": "John Doe",
+    "customerPhone": "+628111222333",
+    "pickup": {
+      "address": "Jl. Sudirman No. 1, Jakarta",
+      "lat": -6.2088,
+      "lng": 106.8456
+    },
+    "dropoff": {
+      "address": "Jl. Thamrin No. 10, Jakarta",
+      "lat": -6.1952,
+      "lng": 106.8231
+    },
+    "vehicleType": "motor"
+  }'`}</CodeBlock>
+            <CodeBlock title="Response">{`{
+  "success": true,
+  "ride": {
+    "code": "RIDE-000043",
+    "rideId": "k57ride123...",
+    "status": "created",
+    "price": 12500
+  }
+}`}</CodeBlock>
+            <p className="text-sm text-zinc-500 mt-2">
+              Price auto-calculated: motor Rp 2,500/km, car Rp 4,000/km (min Rp 10,000).
+            </p>
+
+            <h3 className="text-white font-semibold mb-2 mt-6">Check Ride Status</h3>
+            <p className="mb-2 text-sm">
+              <Badge color="blue">GET</Badge>{" "}
+              <code className="text-zinc-300">{`/api/rides/{RIDE_CODE}/status`}</code> — No auth required
+            </p>
+            <CodeBlock title="curl — Check Status">{`curl ${BASE_URL}/api/rides/RIDE-000043/status`}</CodeBlock>
+            <CodeBlock title="Response">{`{
+  "success": true,
+  "ride": {
+    "code": "RIDE-000043",
+    "status": "assigned",
+    "price": { "amount": 12500, "currency": "IDR" },
+    "paymentStatus": "paid",
+    "driver": {
+      "name": "AI Driver Bot",
+      "vehicleType": "motor",
+      "lastLocation": { "lat": -6.2088, "lng": 106.8456 }
+    }
+  }
+}`}</CodeBlock>
+
+            <h3 className="text-white font-semibold mb-2 mt-6">Pay for Ride (Demo)</h3>
+            <p className="mb-2 text-sm">
+              <Badge color="green">POST</Badge>{" "}
+              <code className="text-zinc-300">{`/api/rides/{RIDE_CODE}/pay`}</code> — No auth required
+            </p>
+            <p className="mb-2 text-sm text-zinc-400">
+              Instantly marks payment as <code className="text-green-400">paid</code>.
+              If ride was <code>created</code> or <code>awaiting_payment</code>, auto-transitions to <code>dispatching</code>.
+            </p>
+            <CodeBlock title="curl — Pay">{`curl -X POST ${BASE_URL}/api/rides/RIDE-000043/pay`}</CodeBlock>
+            <CodeBlock title="Response">{`{
+  "success": true,
+  "alreadyPaid": false,
+  "status": "dispatching",
+  "paymentStatus": "paid"
+}`}</CodeBlock>
+          </Section>
+
+          {/* 9. Full Examples */}
+          <Section id="full-examples" title="9. Full Example — End to End">
             <p className="mb-4 text-sm text-zinc-400">
               Complete flow from registration to receiving your first ride:
             </p>

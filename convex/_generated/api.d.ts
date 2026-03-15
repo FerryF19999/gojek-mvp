@@ -17,6 +17,7 @@ import type * as geo from "../geo.js";
 import type * as geocodes from "../geocodes.js";
 import type * as http from "../http.js";
 import type * as payments from "../payments.js";
+import type * as publicApi from "../publicApi.js";
 import type * as rideAgent from "../rideAgent.js";
 import type * as rides from "../rides.js";
 import type * as seed from "../seed.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   geocodes: typeof geocodes;
   http: typeof http;
   payments: typeof payments;
+  publicApi: typeof publicApi;
   rideAgent: typeof rideAgent;
   rides: typeof rides;
   seed: typeof seed;
