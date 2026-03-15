@@ -10,6 +10,7 @@
 
 import type * as agentActions from "../agentActions.js";
 import type * as dispatch from "../dispatch.js";
+import type * as driverSignup from "../driverSignup.js";
 import type * as drivers from "../drivers.js";
 import type * as geocodes from "../geocodes.js";
 import type * as http from "../http.js";
@@ -30,6 +31,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   agentActions: typeof agentActions;
   dispatch: typeof dispatch;
+  driverSignup: typeof driverSignup;
   drivers: typeof drivers;
   geocodes: typeof geocodes;
   http: typeof http;

@@ -196,6 +196,18 @@ Rules:
 - `months` must be `> 0`
 - `subscribedUntil` must be positive unix ms timestamp
 
+### 12) Activate driver signup subscription (ops-only demo)
+
+`POST /api/ops/driver-signups/{applicationId}/activate`
+
+Notes:
+- Marks a verified driver signup as paid for demo purposes.
+- Internally activates subscription with:
+  - `subscriptionStatus=active`
+  - `subscriptionPlan=monthly_19k`
+  - `subscribedUntil=now+30days`
+- Returns `400` if driver record doesn't exist yet (OTP must be verified first).
+
 ---
 
 ## cURL Examples
@@ -265,4 +277,8 @@ curl -sS -X POST "$BASE_URL/api/ops/drivers/$DRIVER_ID/subscription" \
   -H "x-ops-key: $OPS_KEY" \
   -H "content-type: application/json" \
   -d '{"plan":"monthly_19k","months":1}'
+
+APPLICATION_ID="<driver_application_id>"
+curl -sS -X POST "$BASE_URL/api/ops/driver-signups/$APPLICATION_ID/activate" \
+  -H "x-ops-key: $OPS_KEY"
 ```

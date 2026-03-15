@@ -9,7 +9,9 @@ export default defineSchema({
     email: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("suspended")),
     createdAt: v.number(),
-  }).index("by_role", ["role"]),
+  })
+    .index("by_role", ["role"])
+    .index("by_phone", ["phone"]),
 
   drivers: defineTable({
     userId: v.id("users"),
@@ -28,6 +30,32 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_availability", ["availability"]),
+
+  driverApplications: defineTable({
+    fullName: v.string(),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    city: v.string(),
+    vehicleType: v.union(v.literal("motor"), v.literal("car")),
+    vehicleBrand: v.string(),
+    vehicleModel: v.string(),
+    vehiclePlate: v.string(),
+    licenseNumber: v.string(),
+    emergencyContactName: v.string(),
+    emergencyContactPhone: v.string(),
+    referralCode: v.optional(v.string()),
+    otpCode: v.string(),
+    otpSentAt: v.number(),
+    otpVerifiedAt: v.optional(v.number()),
+    status: v.union(v.literal("otp_pending"), v.literal("pending_payment"), v.literal("active")),
+    userId: v.optional(v.id("users")),
+    driverId: v.optional(v.id("drivers")),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_status", ["status"]),
 
   rides: defineTable({
     code: v.string(),

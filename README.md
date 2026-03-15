@@ -8,6 +8,7 @@ Runnable MVP for an operator-driven ride dispatch and payment flow.
 - `/landing` — Marketing landing page + waitlist signup
 - `/landing/waitlist?key=...` — Minimal waitlist admin view (protected)
 - `/docs` — Docs index page
+- `/driver/signup` — Driver onboarding form + dummy OTP + subscription activation demo
 
 ## Implemented Scope
 

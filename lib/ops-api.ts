@@ -91,6 +91,14 @@ export function requireDriverId(value: string): Id<"drivers"> {
   return driverId as Id<"drivers">;
 }
 
+export function requireDriverApplicationId(value: string): Id<"driverApplications"> {
+  const applicationId = value.trim();
+  if (!applicationId) {
+    throw new OpsApiError(400, "applicationId is required");
+  }
+  return applicationId as Id<"driverApplications">;
+}
+
 const parseKnownError = (message: string) => {
   const normalized = message.toLowerCase();
 
