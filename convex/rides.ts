@@ -48,6 +48,8 @@ export const createRide = mutation({
       code,
       customerName: args.customerName,
       customerPhone: args.customerPhone,
+      agentStatus: "stopped",
+      agentJobIds: [],
       pickup: args.pickup,
       dropoff: args.dropoff,
       vehicleType: args.vehicleType,

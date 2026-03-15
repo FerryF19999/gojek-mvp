@@ -40,6 +40,8 @@ export default function DashboardPage() {
   const updateDriverLocation = useMutation(api.drivers.updateDriverLocation);
   const logSupportAction = useMutation(api.dispatch.logSupportAction);
   const seedDemo = useMutation(api.seed.seedDemo);
+  const startRideAgent = useMutation(api.rideAgent.startRideAgent);
+  const stopRideAgent = useMutation(api.rideAgent.stopRideAgent);
 
   const createPaymentQris = async ({ rideId }: { rideId: string }) => {
     const res = await fetch("/api/payments/qris", {
@@ -192,6 +194,26 @@ export default function DashboardPage() {
             <RideDetail
               ride={selectedRide.ride}
               driverName={selectedRide.driver?.userName || selectedRide.ride.assignedDriverId || "-"}
+              onStartAgent={async () => {
+                try {
+                  const out = await startRideAgent({ rideId: selectedRide.ride._id });
+                  if (out?.alreadyRunning) {
+                    toast.success("Ride agent already running");
+                  } else {
+                    toast.success("Ride agent started");
+                  }
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Failed to start ride agent");
+                }
+              }}
+              onStopAgent={async () => {
+                try {
+                  await stopRideAgent({ rideId: selectedRide.ride._id });
+                  toast.success("Ride agent stopped");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Failed to stop ride agent");
+                }
+              }}
               onSetStatus={async (status) => {
                 try {
                   await updateRideStatus({ rideId: selectedRide.ride._id, status, by: "operator-dashboard" });

@@ -30,6 +30,10 @@ export default defineSchema({
     code: v.string(),
     customerName: v.string(),
     customerPhone: v.string(),
+    agentRunId: v.optional(v.string()),
+    agentStatus: v.union(v.literal("running"), v.literal("stopped"), v.literal("completed")),
+    agentJobIds: v.array(v.string()),
+    lastStepAt: v.optional(v.number()),
     pickup: v.object({
       address: v.string(),
       lat: v.number(),
@@ -98,7 +102,7 @@ export default defineSchema({
 
   agent_actions: defineTable({
     rideId: v.optional(v.id("rides")),
-    agentName: v.union(v.literal("dispatch_agent"), v.literal("support_agent"), v.literal("pricing_agent")),
+    agentName: v.union(v.literal("dispatch_agent"), v.literal("support_agent"), v.literal("pricing_agent"), v.literal("ride_agent")),
     actionType: v.string(),
     input: v.string(),
     output: v.string(),

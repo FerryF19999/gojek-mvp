@@ -13,6 +13,7 @@ import type * as dispatch from "../dispatch.js";
 import type * as drivers from "../drivers.js";
 import type * as http from "../http.js";
 import type * as payments from "../payments.js";
+import type * as rideAgent from "../rideAgent.js";
 import type * as rides from "../rides.js";
 import type * as seed from "../seed.js";
 import type * as webhooks from "../webhooks.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   drivers: typeof drivers;
   http: typeof http;
   payments: typeof payments;
+  rideAgent: typeof rideAgent;
   rides: typeof rides;
   seed: typeof seed;
   webhooks: typeof webhooks;
