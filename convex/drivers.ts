@@ -2,6 +2,46 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { isDriverSubscribed } from "./subscription";
 
+export const registerDriver = mutation({
+  args: {
+    fullName: v.string(),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    vehicleType: v.union(v.literal("motor"), v.literal("car")),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+    notificationWebhook: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const userId = await ctx.db.insert("users", {
+      role: "driver",
+      name: args.fullName,
+      phone: args.phone,
+      email: args.email,
+      status: "active",
+      createdAt: now,
+    });
+
+    const driverId = await ctx.db.insert("drivers", {
+      userId,
+      vehicleType: args.vehicleType,
+      availability: "offline",
+      subscriptionStatus: "inactive",
+      rating: 5.0,
+      notificationWebhook: args.notificationWebhook,
+      lastLocation: {
+        lat: args.lat ?? -6.2,
+        lng: args.lng ?? 106.816666,
+        updatedAt: now,
+      },
+      lastActiveAt: now,
+    });
+
+    return { driverId, userId };
+  },
+});
+
 export const createDriver = mutation({
   args: {
     name: v.string(),
@@ -99,6 +139,7 @@ export const listDrivers = query({
         return {
           ...d,
           userName: user?.name ?? "Unknown",
+          phone: user?.phone ?? null,
           isSubscribed: subscribed,
           subscriptionBadge: badge,
         };

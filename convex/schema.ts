@@ -26,6 +26,7 @@ export default defineSchema({
       lng: v.number(),
       updatedAt: v.number(),
     }),
+    notificationWebhook: v.optional(v.string()),
     lastActiveAt: v.number(),
   })
     .index("by_userId", ["userId"])
@@ -93,8 +94,12 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("cancelled"),
       v.literal("expired"),
+      v.literal("awaiting_driver_response"),
     ),
     assignedDriverId: v.optional(v.id("drivers")),
+    declinedDriverIds: v.optional(v.array(v.id("drivers"))),
+    driverResponseStatus: v.optional(v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined"), v.literal("timeout"))),
+    driverResponseDeadline: v.optional(v.number()),
     timeline: v.array(
       v.object({
         type: v.string(),

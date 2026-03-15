@@ -214,6 +214,112 @@ Notes:
   - `subscribedUntil=now+30days`
 - Returns `400` if driver record doesn't exist yet (OTP must be verified first).
 
+### 13) Register driver (programmatic)
+
+`POST /api/ops/drivers/register`
+
+Body:
+
+```json
+{
+  "fullName": "Budi Santoso",
+  "phone": "081234567890",
+  "email": "budi@example.com",
+  "city": "Jakarta",
+  "vehicleType": "motor",
+  "vehicleBrand": "Honda",
+  "vehicleModel": "Vario 150",
+  "vehiclePlate": "B1234CD",
+  "licenseNumber": "SIM-123456",
+  "emergencyContactName": "Siti",
+  "emergencyContactPhone": "081298765432",
+  "referralCode": "REF123",
+  "lastLocation": { "lat": -6.2, "lng": 106.816 },
+  "notificationWebhook": "https://example.com/webhook"
+}
+```
+
+Required fields: `fullName`, `phone`, `city`, `vehicleType`, `vehicleBrand`, `vehicleModel`, `vehiclePlate`, `licenseNumber`, `emergencyContactName`, `emergencyContactPhone`
+
+Optional: `email`, `referralCode`, `lastLocation`, `notificationWebhook`
+
+Notes:
+- Creates user + driver record directly (skips OTP)
+- Driver starts with `subscriptionStatus: inactive`
+- `vehicleType` must be `motor` or `car`
+- Returns `{ ok, driverId, userId, ... }`
+
+### 14) Update driver location
+
+`POST /api/ops/drivers/{driverId}/location`
+
+Body:
+
+```json
+{ "lat": -6.2, "lng": 106.816 }
+```
+
+Notes:
+- `lat` must be between `-90` and `90`
+- `lng` must be between `-180` and `180`
+- Updates driver's `lastLocation` and `lastActiveAt`
+
+### 15) Notify driver (webhook)
+
+`POST /api/ops/drivers/{driverId}/notify`
+
+Body:
+
+```json
+{
+  "rideId": "<ride_id>",
+  "rideCode": "RIDE-000013",
+  "pickup": "Mall A",
+  "dropoff": "Bandara B",
+  "estimatedFare": 25000,
+  "vehicleType": "motor"
+}
+```
+
+Notes:
+- POSTs to `DRIVER_NOTIFICATION_WEBHOOK` env var with ride details + accept/decline URLs
+- If webhook not configured, returns `200` with `note: "notification skipped"`
+- Payload includes `acceptUrl` and `declineUrl` pointing to `/api/ops/rides/{rideId}/driver-response`
+
+### 16) Driver response to ride assignment
+
+`POST /api/ops/rides/{rideId}/driver-response`
+
+Body:
+
+```json
+{ "action": "accept" }
+```
+
+or
+
+```json
+{ "action": "decline" }
+```
+
+Also accepts `?action=accept` or `?action=decline` as query param.
+
+Notes:
+- `accept` → confirms assignment, ride moves to `assigned`
+- `decline` → releases driver, ride goes back to `dispatching` for re-assignment
+- Used by webhook consumers (e.g. WhatsApp bot) to relay driver decisions
+
+### Ride agent driver notification flow
+
+When the ride agent assigns a driver:
+1. Sets `driverResponseStatus: pending` and `driverResponseDeadline` (30s)
+2. Ride status changes to `awaiting_driver_response`
+3. Agent polls every 3s for driver response
+4. On `accept` → proceeds to `driver_arriving`
+5. On `decline` → re-dispatches to next eligible driver
+6. On timeout (30s) → auto-confirms for demo, proceeds to `driver_arriving`
+7. Dashboard shows "⏳ Waiting for driver response..." during this phase
+
 ---
 
 ## cURL Examples
@@ -287,4 +393,205 @@ curl -sS -X POST "$BASE_URL/api/ops/drivers/$DRIVER_ID/subscription" \
 APPLICATION_ID="<driver_application_id>"
 curl -sS -X POST "$BASE_URL/api/ops/driver-signups/$APPLICATION_ID/activate" \
   -H "x-ops-key: $OPS_KEY"
+
+# Register a new driver (programmatic)
+curl -sS -X POST "$BASE_URL/api/ops/drivers/register" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "fullName":"Budi Santoso",
+    "phone":"081234567890",
+    "city":"Jakarta",
+    "vehicleType":"motor",
+    "vehicleBrand":"Honda",
+    "vehicleModel":"Vario 150",
+    "vehiclePlate":"B1234CD",
+    "licenseNumber":"SIM-123456",
+    "emergencyContactName":"Siti",
+    "emergencyContactPhone":"081298765432"
+  }'
+
+# Update driver GPS location
+DRIVER_ID="<driver_id>"
+curl -sS -X POST "$BASE_URL/api/ops/drivers/$DRIVER_ID/location" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{"lat":-6.2,"lng":106.816}'
+
+# Notify driver about ride assignment
+curl -sS -X POST "$BASE_URL/api/ops/drivers/$DRIVER_ID/notify" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "rideId":"<ride_id>",
+    "rideCode":"RIDE-000013",
+    "pickup":"Mall A",
+    "dropoff":"Bandara B",
+    "estimatedFare":25000,
+    "vehicleType":"motor"
+  }'
+
+# Driver accepts ride
+curl -sS -X POST "$BASE_URL/api/ops/rides/$RIDE_ID/driver-response" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{"action":"accept"}'
+
+# Driver declines ride
+curl -sS -X POST "$BASE_URL/api/ops/rides/$RIDE_ID/driver-response" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{"action":"decline"}'
 ```
+
+---
+
+## Driver Notification & Response Flow
+
+### Overview
+
+When the ride agent assigns a driver, it automatically:
+1. Sends a webhook notification to `DRIVER_NOTIFICATION_WEBHOOK` (env var on Convex)
+2. Sets `driverResponseStatus = "pending"` with a 30-second deadline
+3. Polls the ride record every 3 seconds for driver response
+4. On `accepted`: proceeds to `driver_arriving`
+5. On `declined`: marks driver as declined, retries with next eligible driver
+6. On `timeout` (30s, no response): auto-accepts and proceeds (demo mode)
+
+---
+
+### `POST /api/ops/drivers/{driverId}/notify`
+
+Manually trigger a driver notification webhook for a specific ride.
+No direct auth needed to receive the webhook — the sender uses `DRIVER_NOTIFICATION_WEBHOOK`.
+
+**Request**
+
+```http
+POST /api/ops/drivers/{driverId}/notify
+x-ops-key: <OPS_KEY>
+Content-Type: application/json
+
+{
+  "rideId": "<convex_ride_id>",
+  "rideCode": "RIDE-000013",
+  "pickup": "Bandung",
+  "dropoff": "Jakarta",
+  "estimatedFare": 150000,
+  "vehicleType": "motor"
+}
+```
+
+**Response**
+
+```json
+{
+  "ok": true,
+  "driverId": "<driverId>",
+  "webhookStatus": 200,
+  "payload": {
+    "driverName": "Yuri AI",
+    "driverPhone": "081234567890",
+    "rideCode": "RIDE-000013",
+    "pickup": "Bandung",
+    "dropoff": "Jakarta",
+    "estimatedFare": 150000,
+    "vehicleType": "motor",
+    "action": "ride_assigned",
+    "acceptUrl": "https://gojek-mvp.vercel.app/api/ops/rides/<rideId>/driver-response?action=accept",
+    "declineUrl": "https://gojek-mvp.vercel.app/api/ops/rides/<rideId>/driver-response?action=decline"
+  }
+}
+```
+
+---
+
+### `POST /api/ops/rides/{rideId}/driver-response`
+
+Driver accepts or declines a ride. Also accessible via GET for browser link clicks.
+**No auth required** — this endpoint is called from the accept/decline URL sent to the driver.
+
+**Via POST (programmatic)**
+
+```http
+POST /api/ops/rides/{rideId}/driver-response
+Content-Type: application/json
+
+{ "action": "accept" }
+```
+
+or with query param:
+
+```http
+POST /api/ops/rides/{rideId}/driver-response?action=decline
+```
+
+**Via GET (browser / WhatsApp link click)**
+
+```
+GET /api/ops/rides/{rideId}/driver-response?action=accept
+GET /api/ops/rides/{rideId}/driver-response?action=decline
+```
+
+Returns a simple HTML confirmation page.
+
+**Response (POST)**
+
+```json
+{ "rideId": "<rideId>", "ok": true, "status": "accepted" }
+```
+
+**Effect**
+
+| Action    | Effect |
+|-----------|--------|
+| `accept`  | Sets `driverResponseStatus = "accepted"`, status back to `assigned`. Ride agent proceeds to `driver_arriving`. |
+| `decline` | Frees driver (availability → `online`), adds to `declinedDriverIds`, status → `dispatching`. Agent retries with next driver. |
+
+---
+
+### Webhook Payload Schema
+
+The `DRIVER_NOTIFICATION_WEBHOOK` receives a POST with `Content-Type: application/json`:
+
+```json
+{
+  "driverName": "string",
+  "driverPhone": "string",
+  "rideCode": "string",
+  "pickup": "string",
+  "dropoff": "string",
+  "estimatedFare": 150000,
+  "vehicleType": "motor|car",
+  "action": "ride_assigned",
+  "acceptUrl": "https://gojek-mvp.vercel.app/api/ops/rides/{rideId}/driver-response?action=accept",
+  "declineUrl": "https://gojek-mvp.vercel.app/api/ops/rides/{rideId}/driver-response?action=decline"
+}
+```
+
+The webhook receiver is responsible for delivering the message via WhatsApp, SMS, etc.
+
+---
+
+### Environment Variables
+
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `DRIVER_NOTIFICATION_WEBHOOK` | Convex + Next.js | URL to POST driver notification payload |
+| `NEXT_PUBLIC_APP_URL` | Convex + Next.js | Base URL for accept/decline links (default: `https://gojek-mvp.vercel.app`) |
+
+---
+
+### Schema Changes (Convex — deploy needed)
+
+New fields added:
+
+**`rides` table:**
+- `declinedDriverIds?: Id<"drivers">[]` — drivers that declined this ride
+- `driverResponseStatus?: "pending" | "accepted" | "declined" | "timeout"` — current response state
+- `driverResponseDeadline?: number` — Unix ms deadline for driver response
+- `status` now includes `"awaiting_driver_response"`
+
+**`drivers` table:**
+- `notificationWebhook?: string` — optional custom webhook URL per driver
+

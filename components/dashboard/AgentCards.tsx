@@ -58,6 +58,14 @@ export function AgentCards({ cards, paymentStatus }: { cards: any[]; paymentStat
               {showPrepaidHint ? (
                 <p className="mt-1 text-xs text-amber-700">Waiting for payment (prepaid required)</p>
               ) : null}
+              {key === "ride_agent" &&
+              (card.lastActionType === "notify_driver" ||
+                card.lastActionType === "wait_driver_response" ||
+                card.lastActionType === "assign_driver") ? (
+                <p className="mt-1 animate-pulse text-xs text-blue-600">
+                  ⏳ Waiting for driver response...
+                </p>
+              ) : null}
 
               <div className="mt-2 rounded-md bg-muted/40 p-2">
                 <p className="mb-1 text-xs font-medium">Latest output</p>

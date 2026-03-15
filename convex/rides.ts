@@ -93,6 +93,7 @@ export const updateRideStatus = mutation({
       v.literal("completed"),
       v.literal("cancelled"),
       v.literal("expired"),
+      v.literal("awaiting_driver_response"),
     ),
     note: v.optional(v.string()),
     by: v.string(),
@@ -174,7 +175,77 @@ export const getRide = query({
       .withIndex("by_rideId", (q) => q.eq("rideId", args.rideId))
       .collect();
 
-    return { ride, driver: driver ? { ...driver, userName: driverUser?.name } : null, payments };
+    return { ride, driver: driver ? { ...driver, userName: driverUser?.name, userPhone: driverUser?.phone } : null, payments };
+  },
+});
+
+export const setDriverResponse = mutation({
+  args: {
+    rideId: v.id("rides"),
+    action: v.union(v.literal("accept"), v.literal("decline")),
+  },
+  handler: async (ctx, args) => {
+    const ride = await ctx.db.get(args.rideId);
+    if (!ride) throw new Error("Ride not found");
+
+    const now = Date.now();
+
+    if (args.action === "accept") {
+      await ctx.db.patch(args.rideId, {
+        driverResponseStatus: "accepted",
+        status: "assigned",
+        updatedAt: now,
+        timeline: [
+          ...ride.timeline,
+          { type: "driver_accepted", at: now, by: "driver", note: "Driver accepted ride assignment" },
+        ],
+      });
+
+      await ctx.db.insert("agent_actions", {
+        rideId: args.rideId,
+        agentName: "ride_agent",
+        actionType: "driver_response",
+        input: JSON.stringify({ action: "accept" }),
+        output: JSON.stringify({ status: "accepted" }),
+        approvedBy: "driver",
+        createdAt: now,
+      });
+
+      return { ok: true, status: "accepted" };
+    }
+
+    // decline — free driver, track as declined so agent skips them
+    const declinedDriverId = ride.assignedDriverId;
+    if (declinedDriverId) {
+      await ctx.db.patch(declinedDriverId, { availability: "online", lastActiveAt: now });
+    }
+
+    const existingDeclined = ride.declinedDriverIds ?? [];
+    const newDeclined = declinedDriverId ? [...existingDeclined, declinedDriverId] : existingDeclined;
+
+    await ctx.db.patch(args.rideId, {
+      driverResponseStatus: "declined",
+      assignedDriverId: undefined,
+      declinedDriverIds: newDeclined,
+      status: "dispatching",
+      updatedAt: now,
+      timeline: [
+        ...ride.timeline,
+        { type: "driver_declined", at: now, by: "driver", note: "Driver declined ride — re-dispatching" },
+      ],
+    });
+
+    await ctx.db.insert("agent_actions", {
+      rideId: args.rideId,
+      agentName: "ride_agent",
+      actionType: "driver_response",
+      input: JSON.stringify({ action: "decline", declinedDriverId }),
+      output: JSON.stringify({ status: "declined", note: "Re-dispatching to next available driver" }),
+      approvedBy: "driver",
+      createdAt: now,
+    });
+
+    return { ok: true, status: "declined" };
   },
 });
 
