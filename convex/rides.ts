@@ -61,10 +61,15 @@ export const createRide = mutation({
       dropoff: args.dropoff,
       vehicleType: args.vehicleType,
       price: { amount, currency: "IDR" },
-      status: "dispatching",
+      status: "awaiting_payment",
       timeline: [
         { type: "created", at: now, by: args.createdBy },
-        { type: "dispatching", at: now, by: args.createdBy, note: "Auto move to dispatching" },
+        {
+          type: "awaiting_payment",
+          at: now,
+          by: args.createdBy,
+          note: "Prepaid required before dispatch. Generate QRIS and mark payment paid to continue.",
+        },
       ],
       paymentStatus: "unpaid",
       createdAt: now,
@@ -80,6 +85,7 @@ export const updateRideStatus = mutation({
     rideId: v.id("rides"),
     status: v.union(
       v.literal("created"),
+      v.literal("awaiting_payment"),
       v.literal("dispatching"),
       v.literal("assigned"),
       v.literal("driver_arriving"),

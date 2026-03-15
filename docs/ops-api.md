@@ -145,6 +145,12 @@ Body (optional):
 
 Allowed speed: `slow | normal | fast`
 
+Prepaid behavior:
+- Ride agent enforces prepaid-first dispatch.
+- If no payment exists, it auto-generates demo QRIS and moves ride to `awaiting_payment`.
+- If payment exists but is not paid, ride stays in `awaiting_payment` and agent retries.
+- Dispatch/assignment/movement only continue after payment status is `paid`.  
+
 ### 8) Generate QRIS demo
 
 `POST /api/ops/rides/{rideId}/payment/qris`

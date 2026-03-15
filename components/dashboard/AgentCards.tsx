@@ -26,7 +26,7 @@ const formatOutput = (value?: string | null, maxLength = 140) => {
   return `${compact.slice(0, maxLength)}…`;
 };
 
-export function AgentCards({ cards }: { cards: any[] }) {
+export function AgentCards({ cards, paymentStatus }: { cards: any[]; paymentStatus?: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [viewAll, setViewAll] = useState<Record<string, boolean>>({});
 
@@ -42,6 +42,8 @@ export function AgentCards({ cards }: { cards: any[] }) {
           const isViewAll = !!viewAll[key];
           const visibleActions = isViewAll ? card.actions : card.actions.slice(0, 3);
 
+          const showPrepaidHint = key === "ride_agent" && paymentStatus !== "paid";
+
           return (
             <div key={key} className="rounded-lg border p-3 text-sm">
               <div className="mb-2 flex items-center justify-between gap-2">
@@ -53,6 +55,9 @@ export function AgentCards({ cards }: { cards: any[] }) {
               <p className="text-xs text-muted-foreground">
                 Updated: {card.lastUpdatedAt ? new Date(card.lastUpdatedAt).toLocaleString() : "-"}
               </p>
+              {showPrepaidHint ? (
+                <p className="mt-1 text-xs text-amber-700">Waiting for payment (prepaid required)</p>
+              ) : null}
 
               <div className="mt-2 rounded-md bg-muted/40 p-2">
                 <p className="mb-1 text-xs font-medium">Latest output</p>

@@ -85,6 +85,7 @@ export default defineSchema({
     }),
     status: v.union(
       v.literal("created"),
+      v.literal("awaiting_payment"),
       v.literal("dispatching"),
       v.literal("assigned"),
       v.literal("driver_arriving"),

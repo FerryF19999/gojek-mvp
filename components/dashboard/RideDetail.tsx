@@ -29,6 +29,7 @@ export function RideDetail({
 }) {
   const isAgentRunning = ride.agentStatus === "running";
   const isBlockedBySubscription = !!ride.assignedDriverId && !isAssignedDriverSubscribed;
+  const isPrepaidRequired = ride.paymentStatus !== "paid";
   const blockedTitle = isBlockedBySubscription
     ? "Assigned driver subscription expired. Renew driver subscription to continue."
     : undefined;
@@ -51,6 +52,15 @@ export function RideDetail({
         <p className="text-muted-foreground">Driver: {driverName || "-"}</p>
         <p className="text-muted-foreground">Pickup: {ride.pickup.address}</p>
         <p className="text-muted-foreground">Dropoff: {ride.dropoff.address}</p>
+
+        {isPrepaidRequired ? (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <p className="font-medium">Prepaid required before dispatch</p>
+            <p>
+              Ride is waiting for payment. Generate QRIS and mark payment as paid first. Status: {ride.paymentStatus}.
+            </p>
+          </div>
+        ) : null}
 
         <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr] md:items-end">
           <div className="space-y-1">

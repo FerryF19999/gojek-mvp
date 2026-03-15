@@ -350,7 +350,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              <AgentCards cards={agentCards} />
+              <AgentCards cards={agentCards} paymentStatus={selectedRide.ride.paymentStatus} />
               <StatusTimeline timeline={selectedRide.ride.timeline} />
             </div>
           </>
