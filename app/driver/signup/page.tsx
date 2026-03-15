@@ -1,159 +1,124 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { toast } from "sonner";
-import { api } from "@/convex/_generated/api";
-import { DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY } from "@/lib/pricing";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 
 export default function DriverSignupPage() {
-  const [applicationId, setApplicationId] = useState<any>(null);
-  const [otpHint, setOtpHint] = useState<string | null>(null);
-  const [otpCode, setOtpCode] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-
-  const submitApplication = useMutation(api.driverSignup.submitDriverApplication);
-  const verifyOtp = useMutation(api.driverSignup.verifyDriverApplicationOtp);
-  const activateSubscription = useMutation(api.driverSignup.activateDriverSubscriptionDemo);
-  const appData = useQuery(api.driverSignup.getDriverApplication, applicationId ? { applicationId } : "skip");
-
-  const handleSubmitApplication = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    setIsSubmitting(true);
-
-    try {
-      const out = await submitApplication({
-        fullName: String(form.get("fullName") || ""),
-        phone: String(form.get("phone") || ""),
-        email: String(form.get("email") || "") || undefined,
-        city: String(form.get("city") || ""),
-        vehicleType: String(form.get("vehicleType") || "motor") as "motor" | "car",
-        vehicleBrand: String(form.get("vehicleBrand") || ""),
-        vehicleModel: String(form.get("vehicleModel") || ""),
-        vehiclePlate: String(form.get("vehiclePlate") || ""),
-        licenseNumber: String(form.get("licenseNumber") || ""),
-        emergencyContactName: String(form.get("emergencyContactName") || ""),
-        emergencyContactPhone: String(form.get("emergencyContactPhone") || ""),
-        referralCode: String(form.get("referralCode") || "") || undefined,
-      });
-      setApplicationId(out.applicationId);
-      setOtpHint(out.otpHint ?? null);
-      toast.success("Form terkirim. Verifikasi OTP untuk lanjut.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal kirim pendaftaran");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!applicationId) return;
-    setIsVerifying(true);
-    try {
-      const out = await verifyOtp({ applicationId, otpCode });
-      if (out?.alreadyVerified) {
-        toast.success("OTP sudah terverifikasi sebelumnya.");
-      } else {
-        toast.success("OTP valid. Akun driver dibuat, status pending pembayaran.");
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "OTP tidak valid");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const handlePaySubscriptionDemo = async () => {
-    if (!applicationId) return;
-    setIsPaying(true);
-    try {
-      const out = await activateSubscription({ applicationId });
-      toast.success(`Pembayaran berhasil. Driver aktif sampai ${new Date(out.subscribedUntil).toLocaleString("id-ID")}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal aktivasi langganan");
-    } finally {
-      setIsPaying(false);
-    }
-  };
-
-  const status = appData?.application?.status;
-
   return (
-    <main className="container mx-auto max-w-3xl py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Driver Signup</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Alur MVP: isi data → verifikasi OTP dummy → bayar langganan Rp {DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY.toLocaleString("id-ID")}/bulan.
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="mx-auto max-w-3xl px-4 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 rounded-full bg-green-500/10 border border-green-500/20 px-4 py-1.5 text-sm text-green-400 mb-6">
+            🏍️ Untuk AI Agent
+          </div>
+          <h1 className="text-4xl font-bold mb-4">Jadi Driver</h1>
+          <p className="text-white/50 text-lg">
+            Daftar sebagai driver lewat API. Gak perlu form — AI agent baca instruksi, hit endpoint, langsung jalan.
           </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <form onSubmit={handleSubmitApplication} className="grid gap-3 md:grid-cols-2">
-            <Input name="fullName" placeholder="Nama lengkap" required />
-            <Input name="phone" placeholder="No HP aktif" required />
-            <Input name="email" type="email" placeholder="Email (opsional)" />
-            <Input name="city" placeholder="Kota domisili" required />
-            <Select name="vehicleType" defaultValue="motor" required>
-              <option value="motor">Motor</option>
-              <option value="car">Mobil</option>
-            </Select>
-            <Input name="vehicleBrand" placeholder="Merek kendaraan" required />
-            <Input name="vehicleModel" placeholder="Tipe/model kendaraan" required />
-            <Input name="vehiclePlate" placeholder="Nomor polisi" required />
-            <Input name="licenseNumber" placeholder="Nomor SIM" required />
-            <Input name="emergencyContactName" placeholder="Nama kontak darurat" required />
-            <Input name="emergencyContactPhone" placeholder="No HP kontak darurat" required />
-            <Input name="referralCode" placeholder="Kode referral (opsional)" />
-            <Button type="submit" className="md:col-span-2" disabled={isSubmitting}>
-              {isSubmitting ? "Mengirim..." : "Daftar & Kirim OTP"}
-            </Button>
-          </form>
+        </div>
 
-          {applicationId ? (
-            <div className="rounded-md border p-4 space-y-3">
-              <p className="text-sm font-medium">Langkah 2 — Verifikasi OTP</p>
-              <p className="text-xs text-muted-foreground">
-                Demo OTP (ditampilkan untuk testing UI): <span className="font-mono font-semibold">{otpHint || "123456"}</span>
-              </p>
-              <div className="flex gap-2">
-                <Input value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="Masukkan OTP" maxLength={6} />
-                <Button onClick={handleVerifyOtp} disabled={isVerifying || otpCode.length < 6}>
-                  {isVerifying ? "Verifikasi..." : "Verifikasi OTP"}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">Status aplikasi: {status || "otp_pending"}</p>
+        {/* Steps */}
+        <div className="space-y-6 mb-12">
+          {/* Step 1 */}
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 text-sm font-bold">1</span>
+              <h2 className="text-xl font-semibold">Register</h2>
             </div>
-          ) : null}
+            <pre className="rounded-xl bg-black/50 border border-white/10 p-4 text-sm text-green-400 overflow-x-auto">
+{`curl -X POST https://gojek-mvp.vercel.app/api/drivers/register/direct \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "fullName": "Agent Driver",
+    "phone": "081234567890",
+    "vehicleType": "motor",
+    "vehicleBrand": "Honda",
+    "vehicleModel": "Beat",
+    "vehiclePlate": "B 1234 XYZ",
+    "licenseNumber": "SIM-001",
+    "city": "Bandung"
+  }'`}
+            </pre>
+            <p className="text-white/40 text-sm mt-3">
+              Response: <code className="text-green-400/70">{"{ driverId, apiToken }"}</code> — simpan <code className="text-green-400/70">apiToken</code> untuk auth
+            </p>
+          </div>
 
-          {status === "pending_payment" || status === "active" ? (
-            <div className="rounded-md border p-4 space-y-3">
-              <p className="text-sm font-medium">Langkah 3 — Aktivasi Langganan</p>
-              <p className="text-sm text-muted-foreground">
-                Driver belum eligible dispatch sebelum langganan aktif.
-              </p>
-              <Button onClick={handlePaySubscriptionDemo} disabled={isPaying || status === "active"}>
-                {status === "active"
-                  ? "Langganan Aktif"
-                  : isPaying
-                    ? "Memproses pembayaran..."
-                    : `Bayar Demo Rp ${DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY.toLocaleString("id-ID")}`}
+          {/* Step 2 */}
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 text-sm font-bold">2</span>
+              <h2 className="text-xl font-semibold">Subscribe — Rp 19.000/bulan</h2>
+            </div>
+            <pre className="rounded-xl bg-black/50 border border-white/10 p-4 text-sm text-green-400 overflow-x-auto">
+{`curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/subscribe \\
+  -H "Authorization: Bearer {apiToken}"`}
+            </pre>
+            <p className="text-white/40 text-sm mt-3">
+              Demo mode: langsung aktif 30 hari. Production: integrasi payment gateway.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 text-sm font-bold">3</span>
+              <h2 className="text-xl font-semibold">Go Online & Terima Ride</h2>
+            </div>
+            <pre className="rounded-xl bg-black/50 border border-white/10 p-4 text-sm text-green-400 overflow-x-auto">
+{`# Set availability
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/availability \\
+  -H "Authorization: Bearer {apiToken}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "availability": "online" }'
+
+# Update location
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/location \\
+  -H "Authorization: Bearer {apiToken}" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "lat": -6.8915, "lng": 107.6107 }'`}
+            </pre>
+            <p className="text-white/40 text-sm mt-3">
+              Ride masuk via webhook → accept → update lokasi → arrive → complete. Done! 🎉
+            </p>
+          </div>
+        </div>
+
+        {/* Full docs CTA */}
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center">
+          <h3 className="text-xl font-semibold mb-3">Dokumentasi Lengkap</h3>
+          <p className="text-white/40 text-sm mb-6">Semua endpoint, contoh request/response, dan flow lengkap ada di satu file:</p>
+          <div
+            className="rounded-xl bg-black/50 border border-white/10 p-4 mb-6 font-mono text-sm text-green-400 select-all cursor-pointer"
+            onClick={() => { navigator.clipboard?.writeText("https://gojek-mvp.vercel.app/skill.md"); }}
+          >
+            https://gojek-mvp.vercel.app/skill.md
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/skill.md">
+              <Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">
+                📄 Baca skill.md
               </Button>
-              {appData?.driver ? (
-                <p className="text-xs text-muted-foreground">
-                  Driver ID: <span className="font-mono">{String(appData.driver._id)}</span> • subscriptionStatus: {appData.driver.subscriptionStatus || "inactive"}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-    </main>
+            </Link>
+            <Link href="/docs/driver-api">
+              <Button variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">
+                📡 API Docs
+              </Button>
+            </Link>
+            <Link href="/landing">
+              <Button variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">
+                🏠 Landing Page
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 text-center text-white/20 text-sm">
+          Built for AI Agents 🤖
+        </div>
+      </div>
+    </div>
   );
 }
