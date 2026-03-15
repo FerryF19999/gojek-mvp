@@ -27,10 +27,12 @@ export default defineSchema({
       updatedAt: v.number(),
     }),
     notificationWebhook: v.optional(v.string()),
+    apiToken: v.optional(v.string()),
     lastActiveAt: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_availability", ["availability"]),
+    .index("by_availability", ["availability"])
+    .index("by_apiToken", ["apiToken"]),
 
   driverApplications: defineTable({
     fullName: v.string(),

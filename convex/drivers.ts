@@ -120,6 +120,42 @@ export const setDriverSubscription = mutation({
   },
 });
 
+export const getDriver = query({
+  args: { driverId: v.id("drivers") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.driverId);
+  },
+});
+
+export const getDriverByApiToken = query({
+  args: { apiToken: v.string() },
+  handler: async (ctx, args) => {
+    const driver = await ctx.db
+      .query("drivers")
+      .withIndex("by_apiToken", (q) => q.eq("apiToken", args.apiToken))
+      .first();
+    if (!driver) return null;
+    const user = await ctx.db.get(driver.userId);
+    return { ...driver, userName: user?.name ?? "Unknown", userPhone: user?.phone ?? null, userEmail: user?.email ?? null };
+  },
+});
+
+export const setDriverWebhook = mutation({
+  args: { driverId: v.id("drivers"), url: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.driverId, { notificationWebhook: args.url, lastActiveAt: Date.now() });
+    return { ok: true };
+  },
+});
+
+export const setDriverApiToken = mutation({
+  args: { driverId: v.id("drivers"), apiToken: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.driverId, { apiToken: args.apiToken, lastActiveAt: Date.now() });
+    return { ok: true };
+  },
+});
+
 export const listDrivers = query({
   args: { availability: v.optional(v.string()) },
   handler: async (ctx, args) => {

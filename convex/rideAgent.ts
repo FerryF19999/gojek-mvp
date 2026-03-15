@@ -505,11 +505,18 @@ export const notifyDriverWebhookAction = internalAction({
     runId: v.string(),
   },
   handler: async (ctx, args) => {
-    const webhookUrl = process.env.DRIVER_NOTIFICATION_WEBHOOK;
+    // Check per-driver webhook first, fallback to global env var
+    const driverRecord = await ctx.runQuery(api.drivers.getDriver, { driverId: args.driverId });
+    const driverWebhook = driverRecord?.notificationWebhook;
+    const globalWebhook = process.env.DRIVER_NOTIFICATION_WEBHOOK;
+    const webhookUrl = driverWebhook || globalWebhook;
+
     if (!webhookUrl) {
-      console.warn("[notifyDriver] DRIVER_NOTIFICATION_WEBHOOK not configured, skipping notification");
+      console.warn("[notifyDriver] No webhook configured (neither per-driver nor global), skipping notification");
       return;
     }
+
+    console.log(`[notifyDriver] Using ${driverWebhook ? "per-driver" : "global"} webhook: ${webhookUrl}`);
 
     const ride = await ctx.runQuery(api.rides.getRide, { rideId: args.rideId });
     if (!ride) {
