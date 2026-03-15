@@ -283,12 +283,17 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
     };
   }, [ride.status, ride.driver, ride.pickup, ride.dropoff]);
 
-  // Confetti on completion
+  // Confetti on completion (delayed so map can show final position)
+  const [showCompleteOverlay, setShowCompleteOverlay] = useState(false);
   useEffect(() => {
     if (ride.status === "completed" && !completedRef.current) {
       completedRef.current = true;
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 4000);
+      // Delay overlay by 3s so user sees driver reach dropoff
+      setTimeout(() => {
+        setShowCompleteOverlay(true);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 4000);
+      }, 3000);
     }
   }, [ride.status]);
 
@@ -426,7 +431,7 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
       </MapContainer>
 
       {/* LIVE badge */}
-      {driverPos && ride.status !== "completed" && ride.status !== "cancelled" && (
+      {driverPos && !showCompleteOverlay && ride.status !== "cancelled" && (
         <div className="absolute top-16 right-3 z-[1000]">
           <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-sm rounded-full px-3 py-1.5">
             <span className="relative flex h-2.5 w-2.5">
@@ -458,8 +463,8 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
         </div>
       </div>
 
-      {/* Completion overlay */}
-      {ride.status === "completed" && (
+      {/* Completion overlay (delayed 3s after status change) */}
+      {showCompleteOverlay && (
         <div className="absolute inset-0 z-[999] flex items-center justify-center pointer-events-none">
           <div className="bg-green-600/90 backdrop-blur-sm rounded-2xl px-8 py-6 text-white text-center shadow-2xl">
             <div className="text-5xl mb-2">✅</div>
