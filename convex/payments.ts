@@ -1,11 +1,11 @@
-import { action, internalMutation, query } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
-export const createPaymentQris = action({
+export const createPaymentQris = mutation({
   args: { rideId: v.id("rides"), provider: v.union(v.literal("xendit"), v.literal("midtrans")) },
   handler: async (ctx, args): Promise<any> => {
-    const ride = await ctx.runQuery(internal.payments.getRideInternal, { rideId: args.rideId });
+    const ride = await ctx.db.get(args.rideId);
     if (!ride) throw new Error("Ride not found");
 
     if (args.provider !== "xendit") throw new Error("MVP configured for Xendit only");
@@ -32,10 +32,6 @@ export const createPaymentQris = action({
   },
 });
 
-export const getRideInternal = query({
-  args: { rideId: v.id("rides") },
-  handler: async (ctx, args) => ctx.db.get(args.rideId),
-});
 
 export const upsertPaymentInternal = internalMutation({
   args: {

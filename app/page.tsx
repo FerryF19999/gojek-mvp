@@ -18,7 +18,17 @@ export default function DashboardPage() {
   const createRide = useMutation(api.rides.createRide);
   const assignDriver = useMutation(api.rides.assignDriver);
   const updateRideStatus = useMutation(api.rides.updateRideStatus);
-  const createPaymentQris = useMutation(api.payments.createPaymentQris as any);
+  // Payment QRIS generation is handled via Convex action/internalAction; for simplicity in this MVP UI,
+  // we call a Next.js API route that proxies to Convex HTTP action/webhook stubs.
+  const createPaymentQris = async ({ rideId }: { rideId: string }) => {
+    const res = await fetch("/api/payments/qris", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rideId, provider: "xendit" }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  };
   const setDriverAvailability = useMutation(api.drivers.setDriverAvailability);
   const updateDriverLocation = useMutation(api.drivers.updateDriverLocation);
   const logSupportAction = useMutation(api.dispatch.logSupportAction);
@@ -154,7 +164,13 @@ export default function DashboardPage() {
               <button onClick={() => updateRideStatus({ rideId: selectedRide.ride._id, status: "driver_arriving", by: "operator-dashboard" })}>Mark Driver Arriving</button>
               <button onClick={() => updateRideStatus({ rideId: selectedRide.ride._id, status: "picked_up", by: "operator-dashboard" })}>Mark Picked Up</button>
               <button onClick={() => updateRideStatus({ rideId: selectedRide.ride._id, status: "completed", by: "operator-dashboard" })}>Mark Completed</button>
-              <button className="secondary" onClick={() => createPaymentQris({ rideId: selectedRide.ride._id, provider: "xendit" })}>
+              <button
+                className="secondary"
+                onClick={async () => {
+                  const out = await createPaymentQris({ rideId: String(selectedRide.ride._id) });
+                  alert(`QRIS stub created: ${out?.id || "ok"}`);
+                }}
+              >
                 Generate QRIS (Xendit stub)
               </button>
             </div>
