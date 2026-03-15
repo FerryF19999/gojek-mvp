@@ -271,7 +271,8 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
         const dLng = target.lng - lng;
         const dist = Math.sqrt(dLat * dLat + dLng * dLng);
         if (dist < 0.0005) return prev; // close enough
-        const step = 0.0008;
+        // Dynamic step: faster for longer distances, min 0.0008, max 0.02
+        const step = Math.max(0.0008, Math.min(0.02, dist * 0.05));
         const ratio = step / dist;
         return [lat + dLat * ratio, lng + dLng * ratio];
       });
