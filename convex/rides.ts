@@ -36,12 +36,17 @@ export const createRide = mutation({
       note: v.optional(v.string()),
     }),
     vehicleType: v.union(v.literal("motor"), v.literal("car")),
+    priceOverride: v.optional(v.number()),
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const distanceKm = haversineKm(args.pickup.lat, args.pickup.lng, args.dropoff.lat, args.dropoff.lng);
-    const amount = Math.max(10000, Math.round(distanceKm * 3500));
+    const computedAmount = Math.max(10000, Math.round(distanceKm * 3500));
+    const amount = args.priceOverride ?? computedAmount;
+    if (amount <= 0) {
+      throw new Error("priceOverride must be greater than 0");
+    }
     const code = await nextRideCode(ctx);
 
     const rideId = await ctx.db.insert("rides", {

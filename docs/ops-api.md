@@ -52,13 +52,25 @@ Body:
   "customerPhone": "08123456789",
   "pickup": "Mall A",
   "dropoff": "Bandara B",
+  "pickupLat": -6.914744,
+  "pickupLng": 107.60981,
+  "dropoffLat": -6.208763,
+  "dropoffLng": 106.845599,
+  "vehicleType": "car",
   "fare": 25000
 }
 ```
 
 Notes:
-- `fare` is accepted for compatibility but not persisted in current MVP schema.
-- Coordinates/vehicleType are mapped to MVP defaults.
+- Optional fields:
+  - `pickupLat`, `pickupLng` (defaults: `-6.2`, `106.816666`)
+  - `dropoffLat`, `dropoffLng` (defaults: `-6.21`, `106.82`)
+  - `vehicleType`: `"motor" | "car"` (default: `"motor"`)
+  - `fare` (IDR) overrides computed ride fare and is persisted to `ride.price.amount`
+- Validation:
+  - Latitude must be `-90..90`
+  - Longitude must be `-180..180`
+  - `fare` must be `> 0`
 
 ### 4) Start ride agent
 
@@ -108,6 +120,11 @@ CREATE_RES=$(curl -sS -X POST "$BASE_URL/api/ops/rides" \
     "customerPhone":"08123456789",
     "pickup":"Mall A",
     "dropoff":"Bandara B",
+    "pickupLat":-6.914744,
+    "pickupLng":107.60981,
+    "dropoffLat":-6.208763,
+    "dropoffLng":106.845599,
+    "vehicleType":"car",
     "fare":25000
   }')
 
