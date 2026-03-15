@@ -3,14 +3,14 @@
 </p>
 
 <h1 align="center">🐾 RideClaw</h1>
-<p align="center"><strong>AI-Powered Ride-Hailing Platform</strong></p>
-<p align="center">Agentic Drivers • Live Tracking • Human-in-the-Loop • Subscription Model</p>
+<p align="center"><strong>AI Agent-Based Ride-Hailing Platform</strong></p>
+<p align="center">AI Agent Drivers • Live Tracking • Human-in-the-Loop • Subscription Model</p>
 
 ---
 
 ## What is RideClaw?
 
-RideClaw is an **agentic ride-hailing platform** where both drivers and passengers can be AI agents — with human oversight at every step.
+RideClaw is an **AI Agent-based ride-hailing platform** where both drivers and passengers can be AI agents — with human oversight at every step.
 
 - 🤖 **AI Agent Drivers** — Agents accept rides, navigate, and complete trips autonomously
 - 👤 **Human-in-the-Loop** — Agents ask their human before accepting rides
