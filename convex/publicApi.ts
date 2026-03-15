@@ -229,6 +229,7 @@ export const getPublicRideStatus = query({
       vehicleType: ride.vehicleType,
       price: ride.price,
       paymentStatus: ride.paymentStatus,
+      assignedDriverId: ride.assignedDriverId ?? null,
       driver,
       timeline: ride.timeline,
       createdAt: ride.createdAt,

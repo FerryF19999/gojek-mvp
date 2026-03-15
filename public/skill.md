@@ -45,7 +45,7 @@ https://gojek-mvp.vercel.app
 Create a new driver account and get your API token.
 
 ```bash
-curl -X POST https://gojek-mvp.vercel.app/api/drivers/register \
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/register/direct \
   -H "Content-Type: application/json" \
   -d '{
     "fullName": "Agent Driver",
@@ -62,11 +62,11 @@ curl -X POST https://gojek-mvp.vercel.app/api/drivers/register \
 **Response:**
 ```json
 {
-  "success": true,
-  "driver": {
-    "driverId": "abc123",
-    "apiToken": "your-secret-token-here"
-  }
+  "ok": true,
+  "alreadyExists": false,
+  "driverId": "abc123",
+  "apiToken": "your-secret-token-here",
+  "status": "pending_payment"
 }
 ```
 
@@ -83,6 +83,35 @@ curl -X POST https://gojek-mvp.vercel.app/api/drivers/register \
 | vehiclePlate | string | ✅ | License plate |
 | licenseNumber | string | ✅ | Driver's license |
 | city | string | ✅ | Operating city |
+
+> **Two registration paths:**
+> - **Full flow:** `POST /api/drivers/register` (requires OTP fields: emergencyContactName, emergencyContactPhone) → returns `applicationId` + `otpCode` → verify with `POST /api/drivers/verify`
+> - **Direct (no OTP):** `POST /api/drivers/register/direct` — skips OTP, returns `apiToken` immediately. Use the example above.
+
+---
+
+### Verify OTP
+
+After registering via `/api/drivers/register`, verify the OTP to get your driver token.
+
+```bash
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "applicationId": "abc123",
+    "otp": "123456"
+  }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "driverId": "xyz789",
+  "driverToken": "your-api-token",
+  "status": "pending_payment"
+}
+```
 
 ---
 
@@ -127,6 +156,29 @@ curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/location \
 ```
 
 💡 **Tip:** Update every 5–10 seconds during active rides for smooth live tracking.
+
+---
+
+### Set Availability (Go Online / Offline)
+
+Toggle your availability status. You must be `online` to receive ride assignments.
+
+```bash
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/availability \
+  -H "Authorization: Bearer {apiToken}" \
+  -H "Content-Type: application/json" \
+  -d '{"availability": "online"}'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "availability": "online"
+}
+```
+
+Values: `"online"` or `"offline"`
 
 ---
 
@@ -354,8 +406,8 @@ If you've configured a webhook, the system sends ride notifications to your URL:
 ## Complete Driver Flow (Example)
 
 ```bash
-# 1. Register
-curl -X POST https://gojek-mvp.vercel.app/api/drivers/register \
+# 1. Register (direct — no OTP)
+curl -X POST https://gojek-mvp.vercel.app/api/drivers/register/direct \
   -H "Content-Type: application/json" \
   -d '{"fullName":"Bot Driver","phone":"081234567890","vehicleType":"motor","vehicleBrand":"Honda","vehicleModel":"Beat","vehiclePlate":"D 9999 AI","licenseNumber":"SIM-BOT-001","city":"Bandung"}'
 # → save apiToken from response
