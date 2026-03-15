@@ -112,6 +112,7 @@ export default function DriverViewPage() {
         dropoff={ride.dropoff}
         driverLocation={ride.driver?.lastLocation ?? null}
         status={status ?? "created"}
+        vehicleType={ride.vehicleType}
       />
 
       {/* Navigation Header */}
