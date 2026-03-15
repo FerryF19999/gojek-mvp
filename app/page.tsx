@@ -15,6 +15,7 @@ import { DriverTable } from "@/components/dashboard/DriverTable";
 import { SuggestionCards } from "@/components/dashboard/SuggestionCards";
 import { StatusTimeline } from "@/components/dashboard/StatusTimeline";
 import { PaymentPanel } from "@/components/dashboard/PaymentPanel";
+import { AgentCards } from "@/components/dashboard/AgentCards";
 
 export default function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -33,6 +34,9 @@ export default function DashboardPage() {
   const drivers = useQuery(api.drivers.listDrivers, { availability: undefined }) || [];
   const selectedRide = useQuery(api.rides.getRide, selectedRideId ? { rideId: selectedRideId } : "skip");
   const suggestions = useQuery(api.dispatch.dispatchSuggestions, selectedRideId ? { rideId: selectedRideId } : "skip") || [];
+  const agentCards =
+    useQuery(api.agentActions.getRideAgentCards, selectedRideId ? { rideId: selectedRideId, limitPerAgent: 10 } : "skip") ||
+    [];
   const actions = useQuery(api.agentActions.listAgentActions, {}) || [];
 
   const createRide = useMutation(api.rides.createRide);
@@ -341,6 +345,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
+              <AgentCards cards={agentCards} />
               <StatusTimeline timeline={selectedRide.ride.timeline} />
             </div>
           </>

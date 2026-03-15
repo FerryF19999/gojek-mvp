@@ -103,7 +103,13 @@ export default defineSchema({
 
   agent_actions: defineTable({
     rideId: v.optional(v.id("rides")),
-    agentName: v.union(v.literal("dispatch_agent"), v.literal("support_agent"), v.literal("pricing_agent"), v.literal("ride_agent")),
+    agentName: v.union(
+      v.literal("dispatch_agent"),
+      v.literal("ride_agent"),
+      v.literal("support_agent"),
+      v.literal("payment_agent"),
+      v.literal("pricing_agent"),
+    ),
     actionType: v.string(),
     input: v.string(),
     output: v.string(),

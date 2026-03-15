@@ -107,6 +107,24 @@ export const markPaidDemo = mutation({
       createdAt: now,
     });
 
+    await ctx.db.insert("agent_actions", {
+      rideId: args.rideId,
+      agentName: "payment_agent",
+      actionType: "settlement",
+      input: JSON.stringify({
+        payerAgent: "driver_agent",
+        payeeAgent: "rider_support_agent",
+        paymentId: latest._id,
+        providerRef: latest.providerRef,
+      }),
+      output: JSON.stringify({
+        summary: "Demo settlement completed: driver agent paid rider/support agent.",
+        status: "completed",
+      }),
+      approvedBy: "ops-payment-paid-endpoint",
+      createdAt: now,
+    });
+
     return { ok: true, paymentId: latest._id };
   },
 });
