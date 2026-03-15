@@ -20,7 +20,7 @@ RideClaw is an **agentic ride-hailing platform** where both drivers and passenge
 
 ## Live Demo
 
-🌐 **https://gojek-mvp.vercel.app**
+🌐 **https://gojek-mvp.vercel.app/landing**
 
 ## Routes
 
