@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useConvexConnectionState, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -22,6 +22,10 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [supportScenario, setSupportScenario] = useState<"driver_late" | "customer_cancel" | "refund_request">("driver_late");
   const [isQrisLoading, setIsQrisLoading] = useState(false);
+  const [selectNewestOnNextSync, setSelectNewestOnNextSync] = useState(false);
+
+  const connectionState = useConvexConnectionState();
+  const isConnected = connectionState?.isWebSocketConnected ?? false;
 
   const rides = useQuery(api.rides.listRides, { status: statusFilter || undefined }) || [];
   const drivers = useQuery(api.drivers.listDrivers, { availability: undefined }) || [];
@@ -53,6 +57,12 @@ export default function DashboardPage() {
     return rides.filter((r) => r.code.toLowerCase().includes(q) || r.customerName.toLowerCase().includes(q));
   }, [rides, search]);
 
+  useEffect(() => {
+    if (!selectNewestOnNextSync || rides.length === 0) return;
+    setSelectedRideId(rides[0]?._id ?? null);
+    setSelectNewestOnNextSync(false);
+  }, [rides, selectNewestOnNextSync]);
+
   const handleCreateRide = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -75,9 +85,13 @@ export default function DashboardPage() {
         vehicleType: "motor",
         createdBy: "operator-dashboard",
       });
-      setSelectedRideId(rideId);
+      if (rideId) {
+        setSelectedRideId(rideId);
+      } else {
+        setSelectNewestOnNextSync(true);
+      }
       e.currentTarget.reset();
-      toast.success("Ride created");
+      toast.success("Ride created successfully");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create ride");
     }
@@ -90,7 +104,16 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold">Gojek Agentic Operator Dashboard</h1>
           <p className="text-sm text-muted-foreground">Dispatch rides, assign drivers, and monitor status in one place.</p>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+              isConnected ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+            }`}
+          >
+            {isConnected ? "Connected" : "Disconnected"}
+          </span>
+          <ThemeToggle />
+        </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
@@ -172,7 +195,12 @@ export default function DashboardPage() {
               onSetStatus={async (status) => {
                 try {
                   await updateRideStatus({ rideId: selectedRide.ride._id, status, by: "operator-dashboard" });
-                  toast.success(`Ride marked ${status}`);
+                  const statusLabel: Record<string, string> = {
+                    driver_arriving: "Driver arriving",
+                    picked_up: "Picked up",
+                    completed: "Completed",
+                  };
+                  toast.success(`Ride status updated: ${statusLabel[status] || status}`);
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Failed to update status");
                 }
@@ -228,7 +256,11 @@ export default function DashboardPage() {
                           scenario: supportScenario,
                           approvedBy: "operator-dashboard",
                         });
-                        toast.success(out.suggestion);
+                        toast.success(
+                          out?.suggestion
+                            ? `Suggested resolution logged: ${out.suggestion}`
+                            : "Support action logged successfully",
+                        );
                       } catch (error) {
                         toast.error(error instanceof Error ? error.message : "Failed to log support action");
                       }
