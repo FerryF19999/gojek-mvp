@@ -185,3 +185,26 @@ export const listDrivers = query({
     return hydrated.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
   },
 });
+
+/** List rides assigned to a driver (by driverId) */
+export const getDriverRides = query({
+  args: { driverId: v.id("drivers") },
+  handler: async (ctx, args) => {
+    const rides = await ctx.db
+      .query("rides")
+      .filter((q) => q.eq(q.field("assignedDriverId"), args.driverId))
+      .order("desc")
+      .take(20);
+    return rides.map((r) => ({
+      _id: r._id,
+      code: r.code,
+      status: r.status,
+      vehicleType: r.vehicleType,
+      customerName: r.customerName,
+      pickup: r.pickup,
+      dropoff: r.dropoff,
+      price: r.price,
+      createdAt: r._creationTime,
+    }));
+  },
+});
