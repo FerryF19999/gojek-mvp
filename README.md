@@ -44,7 +44,10 @@ Create `.env.local` in `gojek-agentic-mvp/`:
 
 ```bash
 NEXT_PUBLIC_CONVEX_URL=<your convex dev deployment url>
+# Optional for server-side ops API (preferred over NEXT_PUBLIC_CONVEX_URL):
+CONVEX_URL=<your convex deployment url>
 XENDIT_CALLBACK_TOKEN=<dev-shared-token>
+OPS_API_KEY=<private key for /api/ops/*>
 ```
 
 For local demo webhook simulation, call Convex HTTP endpoint:
@@ -83,3 +86,4 @@ Body sample:
 - MVP uses web operator dashboard only (no mobile apps).
 - Payment integration is a **stubbed Xendit QRIS flow** for dev/demo speed.
 - Dispatch ranking uses Haversine distance + simple scoring.
+- Private deterministic Ops API docs: `docs/ops-api.md`.

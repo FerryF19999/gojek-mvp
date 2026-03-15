@@ -164,3 +164,27 @@ export const getRide = query({
     return { ride, driver: driver ? { ...driver, userName: driverUser?.name } : null, payments };
   },
 });
+
+export const getRideOps = query({
+  args: { rideId: v.id("rides") },
+  handler: async (ctx, args) => {
+    const ride = await ctx.db.get(args.rideId);
+    if (!ride) return null;
+
+    const payments = await ctx.db
+      .query("payments")
+      .withIndex("by_rideId", (q) => q.eq("rideId", args.rideId))
+      .collect();
+
+    const actions = await ctx.db
+      .query("agent_actions")
+      .withIndex("by_rideId", (q) => q.eq("rideId", args.rideId))
+      .collect();
+
+    return {
+      ride,
+      payments: payments.sort((a, b) => b.createdAt - a.createdAt),
+      actions: actions.sort((a, b) => b.createdAt - a.createdAt),
+    };
+  },
+});
