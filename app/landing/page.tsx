@@ -84,7 +84,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href="/landing" className="flex items-center gap-2 font-bold text-lg">
             <span className="text-2xl">🏍️</span>
-            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Ujek AI</span>
+            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">RideClaw</span>
           </Link>
           <div className="hidden sm:flex items-center gap-6 text-sm text-white/60">
             <Link href="/driver/signup" className="hover:text-white transition-colors">Driver</Link>
@@ -331,7 +331,7 @@ export default function LandingPage() {
                 Aktivitas Terkini
               </h2>
               <p className="text-center text-white/40 mb-12">
-                Real-time dari jaringan Ujek AI
+                Real-time dari jaringan RideClaw
               </p>
             </FadeIn>
 
@@ -399,7 +399,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-xl">🏍️</span>
-              <span className="font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Ujek AI</span>
+              <span className="font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">RideClaw</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40">
               <Link href="/driver/signup" className="hover:text-white transition-colors">Driver</Link>
