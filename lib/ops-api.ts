@@ -83,11 +83,42 @@ export function requireRideId(value: string): Id<"rides"> {
   return rideId as Id<"rides">;
 }
 
+const parseKnownError = (message: string) => {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("no payment found")) {
+    return { status: 400, body: { error: "No payment found for this ride. Generate QRIS first." } };
+  }
+
+  if (normalized.includes("ride not found")) {
+    return { status: 404, body: { error: "Ride not found" } };
+  }
+
+  if (normalized.includes("argumentvalidationerror") || normalized.includes("invalid value")) {
+    return { status: 400, body: { error: message } };
+  }
+
+  if (normalized.includes("could not find public function")) {
+    return {
+      status: 500,
+      body: {
+        error:
+          "Convex function is missing in deployed environment. Deploy latest Convex functions and retry.",
+      },
+    };
+  }
+
+  return null;
+};
+
 export function safeError(error: unknown) {
   if (error instanceof OpsApiError) {
     return { status: error.status, body: { error: error.message } };
   }
 
   const message = error instanceof Error ? error.message : "Internal server error";
+  const known = parseKnownError(message);
+  if (known) return known;
+
   return { status: 500, body: { error: message } };
 }

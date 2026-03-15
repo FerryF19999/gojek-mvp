@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { rideId: stri
         createdAt: result.ride.createdAt,
         updatedAt: result.ride.updatedAt,
       },
-      actions: result.actions.map((action) => ({
+      actions: (result.actions ?? []).map((action) => ({
         id: action._id,
         agentName: action.agentName,
         actionType: action.actionType,
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: { rideId: stri
         approvedBy: action.approvedBy,
         createdAt: action.createdAt,
       })),
-      payments: result.payments.map((payment) => ({
+      payments: (result.payments ?? []).map((payment) => ({
         paymentId: payment._id,
         provider: payment.provider,
         providerRef: payment.providerRef,

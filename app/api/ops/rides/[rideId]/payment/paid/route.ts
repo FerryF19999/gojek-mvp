@@ -8,6 +8,19 @@ export async function POST(req: NextRequest, { params }: { params: { rideId: str
 
     const convex = getConvexClient();
     const rideId = requireRideId(params.rideId);
+
+    const rideOps = await convex.query(api.rides.getRideOps, { rideId });
+    if (!rideOps) {
+      return NextResponse.json({ error: "Ride not found" }, { status: 404 });
+    }
+
+    if (!rideOps.payments.length) {
+      return NextResponse.json(
+        { error: "No payment found for this ride. Generate QRIS first." },
+        { status: 400 },
+      );
+    }
+
     const result = await convex.mutation(api.payments.markPaidDemo, { rideId });
 
     return NextResponse.json(result);

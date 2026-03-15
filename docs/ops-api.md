@@ -121,11 +121,19 @@ Allowed speed: `slow | normal | fast`
 
 `POST /api/ops/rides/{rideId}/payment/paid`
 
+Notes:
+- Returns `404` when ride is not found.
+- Returns `400` when no payment exists yet for the ride (`Generate QRIS first`).
+
 ### 8) Ride detail
 
 `GET /api/ops/rides/{rideId}`
 
-Returns selected ride fields + timeline + agent actions + payments.
+Returns `{ ok: true, ride, actions, payments }`.
+
+Notes:
+- Returns `404` when ride is not found.
+- If Convex deployment is stale (missing required function), response includes a clear deploy hint instead of a generic error.
 
 ### 9) Set driver subscription
 
