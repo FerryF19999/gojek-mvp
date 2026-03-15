@@ -116,4 +116,24 @@ export default defineSchema({
     eventId: v.string(),
     createdAt: v.number(),
   }).index("by_provider_event", ["provider", "eventId"]),
+
+  geocodes: defineTable({
+    query: v.string(),
+    lat: v.number(),
+    lng: v.number(),
+    displayName: v.string(),
+    provider: v.string(),
+    createdAt: v.number(),
+  }).index("by_query", ["query"]),
+
+  waitlist: defineTable({
+    name: v.string(),
+    email: v.string(),
+    company: v.optional(v.string()),
+    role: v.optional(v.string()),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_createdAt", ["createdAt"]),
 });

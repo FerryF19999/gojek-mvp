@@ -11,11 +11,13 @@
 import type * as agentActions from "../agentActions.js";
 import type * as dispatch from "../dispatch.js";
 import type * as drivers from "../drivers.js";
+import type * as geocodes from "../geocodes.js";
 import type * as http from "../http.js";
 import type * as payments from "../payments.js";
 import type * as rideAgent from "../rideAgent.js";
 import type * as rides from "../rides.js";
 import type * as seed from "../seed.js";
+import type * as waitlist from "../waitlist.js";
 import type * as webhooks from "../webhooks.js";
 
 import type {
@@ -28,11 +30,13 @@ declare const fullApi: ApiFromModules<{
   agentActions: typeof agentActions;
   dispatch: typeof dispatch;
   drivers: typeof drivers;
+  geocodes: typeof geocodes;
   http: typeof http;
   payments: typeof payments;
   rideAgent: typeof rideAgent;
   rides: typeof rides;
   seed: typeof seed;
+  waitlist: typeof waitlist;
   webhooks: typeof webhooks;
 }>;
 

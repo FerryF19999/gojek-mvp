@@ -2,6 +2,13 @@
 
 Runnable MVP for an operator-driven ride dispatch and payment flow.
 
+## Routes
+
+- `/` — Operator dashboard demo
+- `/landing` — Marketing landing page + waitlist signup
+- `/landing/waitlist?key=...` — Minimal waitlist admin view (protected)
+- `/docs` — Docs index page
+
 ## Implemented Scope
 
 - Convex backend schema + functions
@@ -48,6 +55,8 @@ NEXT_PUBLIC_CONVEX_URL=<your convex dev deployment url>
 CONVEX_URL=<your convex deployment url>
 XENDIT_CALLBACK_TOKEN=<dev-shared-token>
 OPS_API_KEY=<private key for /api/ops/*>
+# Optional custom key for /landing/waitlist protection
+WAITLIST_ADMIN_KEY=<admin key for /landing/waitlist?key=...>
 ```
 
 For local demo webhook simulation, call Convex HTTP endpoint:
@@ -87,3 +96,11 @@ Body sample:
 - Payment integration is a **stubbed Xendit QRIS flow** for dev/demo speed.
 - Dispatch ranking uses Haversine distance + simple scoring.
 - Private deterministic Ops API docs: `docs/ops-api.md`.
+
+## Vercel Quick Setup
+
+1. Import this repo into Vercel.
+2. Add env vars: `CONVEX_URL` (or `NEXT_PUBLIC_CONVEX_URL`), `OPS_API_KEY`, and optional `WAITLIST_ADMIN_KEY`.
+3. Deploy.
+4. Run Convex deploy separately (`npx convex deploy`) so the `waitlist` table + functions are available in production.
+
