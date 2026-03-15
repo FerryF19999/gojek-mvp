@@ -40,6 +40,15 @@ Response:
 
 `POST /api/ops/seed`
 
+Optional input:
+- Query: `?force=1` (also accepts `true`/`yes`)
+- JSON body: `{ "force": true }`
+
+Notes:
+- Seeding remains idempotent (`seeded` is `false` when no new drivers are inserted)
+- Even when `seeded=false`, demo drivers are patched to be eligible (`availability=online`, active subscription, `subscribedUntil` in future)
+- Use `force` when you want to explicitly ensure a healthy demo pool before dispatch tests
+
 ### 3) Create ride
 
 `POST /api/ops/rides`
@@ -101,7 +110,30 @@ Notes:
 - Caches results in Convex `geocodes` table (keyed by normalized query)
 - On provider failure/no result, returns `502`
 
-### 5) Start ride agent
+### 5) List drivers
+
+`GET /api/ops/drivers`
+
+Response fields per driver:
+- `id`, `name`
+- `vehicleType`
+- `availability`
+- `subscriptionPlan`, `subscriptionStatus`, `subscribedUntil`, `isSubscribed`
+- `lastLocation`
+
+### 6) Set driver availability
+
+`POST /api/ops/drivers/{driverId}/availability`
+
+Body:
+
+```json
+{ "availability": "online" }
+```
+
+Allowed values: `online | offline | busy`
+
+### 7) Start ride agent
 
 `POST /api/ops/rides/{rideId}/agent/start`
 
@@ -113,11 +145,11 @@ Body (optional):
 
 Allowed speed: `slow | normal | fast`
 
-### 6) Generate QRIS demo
+### 8) Generate QRIS demo
 
 `POST /api/ops/rides/{rideId}/payment/qris`
 
-### 7) Mark paid demo
+### 9) Mark paid demo
 
 `POST /api/ops/rides/{rideId}/payment/paid`
 
@@ -125,7 +157,7 @@ Notes:
 - Returns `404` when ride is not found.
 - Returns `400` when no payment exists yet for the ride (`Generate QRIS first`).
 
-### 8) Ride detail
+### 10) Ride detail
 
 `GET /api/ops/rides/{rideId}`
 
@@ -135,7 +167,7 @@ Notes:
 - Returns `404` when ride is not found.
 - If Convex deployment is stale (missing required function), response includes a clear deploy hint instead of a generic error.
 
-### 9) Set driver subscription
+### 11) Set driver subscription
 
 `POST /api/ops/drivers/{driverId}/subscription`
 
@@ -177,6 +209,18 @@ curl -sS "$BASE_URL/api/ops/health" \
 
 curl -sS -X POST "$BASE_URL/api/ops/seed" \
   -H "x-ops-key: $OPS_KEY"
+
+curl -sS -X POST "$BASE_URL/api/ops/seed?force=1" \
+  -H "x-ops-key: $OPS_KEY"
+
+curl -sS "$BASE_URL/api/ops/drivers" \
+  -H "x-ops-key: $OPS_KEY"
+
+DRIVER_ID="<driver_id>"
+curl -sS -X POST "$BASE_URL/api/ops/drivers/$DRIVER_ID/availability" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{"availability":"online"}'
 
 curl -sS -X POST "$BASE_URL/api/ops/geocode" \
   -H "x-ops-key: $OPS_KEY" \

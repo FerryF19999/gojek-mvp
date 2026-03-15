@@ -83,6 +83,14 @@ export function requireRideId(value: string): Id<"rides"> {
   return rideId as Id<"rides">;
 }
 
+export function requireDriverId(value: string): Id<"drivers"> {
+  const driverId = value.trim();
+  if (!driverId) {
+    throw new OpsApiError(400, "driverId is required");
+  }
+  return driverId as Id<"drivers">;
+}
+
 const parseKnownError = (message: string) => {
   const normalized = message.toLowerCase();
 

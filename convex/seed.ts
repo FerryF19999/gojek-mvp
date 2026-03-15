@@ -1,4 +1,5 @@
 import { mutation } from "./_generated/server";
+import { v } from "convex/values";
 
 type DemoDriver = {
   name: string;
@@ -16,8 +17,10 @@ const DEMO_DRIVERS: DemoDriver[] = [
 ];
 
 export const seedDemo = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    force: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
     const now = Date.now();
     const activeUntil = now + 30 * 24 * 60 * 60 * 1000;
 
@@ -95,7 +98,9 @@ export const seedDemo = mutation({
 
     const refreshedDrivers = await ctx.db.query("drivers").collect();
     const eligibleNow = refreshedDrivers.filter(
-      (d) => d.availability === "online" && (d.subscribedUntil ? d.subscribedUntil > now : d.subscriptionStatus === "active"),
+      (d) =>
+        d.availability === "online" &&
+        (d.subscribedUntil ? d.subscribedUntil > now : d.subscriptionStatus === "active"),
     );
 
     const eligibleByType = {
@@ -105,6 +110,7 @@ export const seedDemo = mutation({
 
     return {
       seeded: inserted > 0,
+      force: !!args.force,
       inserted,
       patched,
       eligibleByType,
