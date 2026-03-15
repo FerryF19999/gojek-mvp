@@ -3,6 +3,7 @@ import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { isDriverSubscribed } from "./subscription";
+import { haversineKm } from "./geo";
 
 type AgentSpeed = "slow" | "normal" | "fast";
 
@@ -55,16 +56,6 @@ const nextStep = {
 } as const;
 
 const DRIVER_RESPONSE_TIMEOUT_MS = 30000; // 30s for demo
-
-const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-};
 
 const resolveSpeed = (speed: unknown): AgentSpeed => {
   if (speed === "slow" || speed === "fast") return speed;
@@ -324,6 +315,11 @@ export const runRideAgentStep = internalMutation({
         return;
       }
 
+      // Resolve driver name for logging
+      const assignedDriverDoc = candidates.find((d) => String(d._id) === String(best.driverId));
+      const assignedUser = assignedDriverDoc ? await ctx.db.get(assignedDriverDoc.userId) : null;
+      const assignedDriverName = assignedUser?.name ?? "Unknown";
+
       const now = Date.now();
       const deadline = now + DRIVER_RESPONSE_TIMEOUT_MS;
       await ctx.db.patch(best.driverId, { availability: "busy", lastActiveAt: now });
@@ -338,7 +334,13 @@ export const runRideAgentStep = internalMutation({
         rideId: args.rideId,
         actionType: "assign_driver",
         input: { step: args.step, speed },
-        output: { driverId: best.driverId, distanceKm: Number(best.distanceKm.toFixed(2)), notifyScheduled: true },
+        output: {
+          driverId: best.driverId,
+          driverName: assignedDriverName,
+          distanceKm: Number(best.distanceKm.toFixed(2)),
+          summary: `${assignedDriverName} (${best.distanceKm.toFixed(1)} km away)`,
+          notifyScheduled: true,
+        },
       });
     }
 

@@ -1,16 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { isDriverSubscribed } from "./subscription";
-
-const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-};
+import { haversineKm } from "./geo";
 
 export const dispatchSuggestions = query({
   args: { rideId: v.id("rides") },
@@ -33,22 +24,31 @@ export const dispatchSuggestions = query({
       };
     }
 
+    // Resolve driver names from users table
+    const driverUserIds = eligible.map((d) => d.userId);
+    const users = await Promise.all(driverUserIds.map((uid) => ctx.db.get(uid)));
+    const userNameMap = new Map(
+      eligible.map((d, i) => [String(d._id), users[i]?.name ?? "Unknown"]),
+    );
+
     const ranked = eligible
       .map((d) => {
         const distanceKm = haversineKm(ride.pickup.lat, ride.pickup.lng, d.lastLocation.lat, d.lastLocation.lng);
         const recentPenalty = Math.max(0, 120 - (Date.now() - d.lastActiveAt) / 1000) / 10;
         const ratingBoost = (d.rating ?? 4.5) * 3;
         const score = 100 - distanceKm * 8 - recentPenalty + ratingBoost;
+        const driverName = userNameMap.get(String(d._id)) ?? "Unknown";
 
         return {
           driverId: d._id,
+          driverName,
           distanceKm: Number(distanceKm.toFixed(2)),
           score: Number(score.toFixed(2)),
-          reasoning: `Distance ${distanceKm.toFixed(2)}km, rating ${d.rating ?? 4.5}, active recently`,
+          reasoning: `${driverName} (${distanceKm.toFixed(1)} km) — rating ${d.rating ?? 4.5}`,
         };
       })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, 5);
 
     return { suggestions: ranked, reason: null };
   },

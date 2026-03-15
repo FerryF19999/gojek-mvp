@@ -24,11 +24,18 @@ export function SuggestionCards({
         {!loading && suggestions.length === 0 ? (
           <p className="text-sm text-muted-foreground">{reason || "No suggestions yet."}</p>
         ) : null}
-        {suggestions.map((s) => (
-          <div key={s.driverId} className="rounded-md border p-3">
-            <p className="font-medium">Score {s.score}</p>
-            <p className="mb-2 text-xs text-muted-foreground">{s.reasoning}</p>
-            <Button size="sm" onClick={() => onAssign(s.driverId)}>
+        {suggestions.map((s, i) => (
+          <div key={s.driverId} className="flex items-center justify-between rounded-md border p-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">
+                {i + 1}. {s.driverName ?? "Driver"}{" "}
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({s.distanceKm != null ? `${s.distanceKm} km` : "—"})
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">{s.reasoning}</p>
+            </div>
+            <Button size="sm" className="ml-3 shrink-0" onClick={() => onAssign(s.driverId)}>
               Assign
             </Button>
           </div>
