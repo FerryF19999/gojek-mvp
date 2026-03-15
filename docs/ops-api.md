@@ -72,7 +72,36 @@ Notes:
   - Longitude must be `-180..180`
   - `fare` must be `> 0`
 
-### 4) Start ride agent
+### 4) Geocode address (cached)
+
+`POST /api/ops/geocode`
+
+Body:
+
+```json
+{ "query": "Dago, Bandung" }
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "query": "Dago, Bandung",
+  "lat": -6.8892,
+  "lng": 107.6133,
+  "displayName": "Dago, Coblong, Bandung, Jawa Barat, Indonesia",
+  "provider": "openstreetmap-nominatim"
+}
+```
+
+Notes:
+- Validates `query` as non-empty string (`400` when missing/empty)
+- Uses OpenStreetMap Nominatim as provider
+- Caches results in Convex `geocodes` table (keyed by normalized query)
+- On provider failure/no result, returns `502`
+
+### 5) Start ride agent
 
 `POST /api/ops/rides/{rideId}/agent/start`
 
@@ -84,15 +113,15 @@ Body (optional):
 
 Allowed speed: `slow | normal | fast`
 
-### 5) Generate QRIS demo
+### 6) Generate QRIS demo
 
 `POST /api/ops/rides/{rideId}/payment/qris`
 
-### 6) Mark paid demo
+### 7) Mark paid demo
 
 `POST /api/ops/rides/{rideId}/payment/paid`
 
-### 7) Ride detail
+### 8) Ride detail
 
 `GET /api/ops/rides/{rideId}`
 
@@ -111,6 +140,11 @@ curl -sS "$BASE_URL/api/ops/health" \
 
 curl -sS -X POST "$BASE_URL/api/ops/seed" \
   -H "x-ops-key: $OPS_KEY"
+
+curl -sS -X POST "$BASE_URL/api/ops/geocode" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{"query":"Dago, Bandung"}'
 
 CREATE_RES=$(curl -sS -X POST "$BASE_URL/api/ops/rides" \
   -H "x-ops-key: $OPS_KEY" \
