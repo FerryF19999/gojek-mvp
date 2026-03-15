@@ -12,11 +12,14 @@ export async function POST(
 
     const result = await convex.mutation(api.publicApi.payRideByCode, { code: rideCode });
 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gojek-mvp.vercel.app";
     return NextResponse.json({
       success: true,
       alreadyPaid: result.alreadyPaid,
       status: result.status,
       paymentStatus: result.paymentStatus,
+      trackingUrl: `${baseUrl}/track/${rideCode}`,
+      statusUrl: `${baseUrl}/api/rides/${rideCode}/status`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal server error";

@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       vehicleType,
     });
 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gojek-mvp.vercel.app";
     return NextResponse.json({
       success: true,
       ride: {
@@ -43,6 +44,9 @@ export async function POST(req: NextRequest) {
         rideId: result.rideId,
         status: result.status,
         price: result.price,
+        trackingUrl: `${baseUrl}/track/${result.code}`,
+        payUrl: `${baseUrl}/api/rides/${result.code}/pay`,
+        statusUrl: `${baseUrl}/api/rides/${result.code}/status`,
       },
     });
   } catch (error) {
