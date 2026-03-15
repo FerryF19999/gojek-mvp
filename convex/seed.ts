@@ -10,10 +10,11 @@ type DemoDriver = {
 };
 
 const DEMO_DRIVERS: DemoDriver[] = [
-  { name: "Budi", phone: "0811111111", lat: -6.2, lng: 106.816666, vehicleType: "motor" },
-  { name: "Siti", phone: "0822222222", lat: -6.205, lng: 106.82, vehicleType: "motor" },
-  { name: "Agus", phone: "0833333333", lat: -6.19, lng: 106.81, vehicleType: "car" },
-  { name: "Rina", phone: "0844444444", lat: -6.25, lng: 106.79, vehicleType: "car" },
+  // Bandung area drivers
+  { name: "Budi", phone: "0811111111", lat: -6.8915, lng: 107.6107, vehicleType: "motor" },   // ITB area
+  { name: "Siti", phone: "0822222222", lat: -6.9025, lng: 107.6186, vehicleType: "motor" },   // Dago
+  { name: "Agus", phone: "0833333333", lat: -6.9175, lng: 107.6191, vehicleType: "car" },     // Braga
+  { name: "Rina", phone: "0844444444", lat: -6.9220, lng: 107.6070, vehicleType: "car" },     // Alun-alun
 ];
 
 export const seedDemo = mutation({
