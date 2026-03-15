@@ -1,5 +1,6 @@
 "use client";
 
+import { DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY } from "@/lib/pricing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,10 @@ export function DriverTable({
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle>Driver Pool</CardTitle>
+        <div>
+          <CardTitle>Driver Pool</CardTitle>
+          <p className="text-xs text-muted-foreground">Subscription: Rp {DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY.toLocaleString("id-ID")}/month</p>
+        </div>
         <Button size="sm" onClick={onSeed}>Seed demo</Button>
       </CardHeader>
       <CardContent>
@@ -35,6 +39,12 @@ export function DriverTable({
                 <Badge variant={d.availability === "online" ? "success" : d.availability === "busy" ? "warning" : "secondary"}>
                   {d.availability}
                 </Badge>
+              </div>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Badge variant={d.subscriptionBadge === "Subscribed" ? "success" : d.subscriptionBadge === "Expired" ? "warning" : "secondary"}>
+                  {d.subscriptionBadge}
+                </Badge>
+                {d.subscriptionPlan ? <Badge variant="secondary">Plan: {d.subscriptionPlan}</Badge> : null}
               </div>
               <p className="mb-2 text-xs text-muted-foreground">
                 {d.vehicleType} • {d.lastLocation.lat.toFixed(4)}, {d.lastLocation.lng.toFixed(4)}

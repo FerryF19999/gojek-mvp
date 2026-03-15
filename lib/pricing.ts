@@ -1,0 +1,2 @@
+export const DRIVER_SUBSCRIPTION_PRICE_IDR_MONTHLY = 19000;
+export const DRIVER_SUBSCRIPTION_PLAN = "monthly_19k";

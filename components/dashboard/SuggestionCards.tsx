@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function SuggestionCards({
   suggestions,
+  reason,
   loading,
   onAssign,
 }: {
   suggestions: any[];
+  reason?: string | null;
   loading: boolean;
   onAssign: (driverId: any) => void;
 }) {
@@ -19,7 +21,9 @@ export function SuggestionCards({
       </CardHeader>
       <CardContent className="space-y-2">
         {loading ? <p className="text-sm text-muted-foreground">Calculating suggestions...</p> : null}
-        {!loading && suggestions.length === 0 ? <p className="text-sm text-muted-foreground">No suggestions yet.</p> : null}
+        {!loading && suggestions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{reason || "No suggestions yet."}</p>
+        ) : null}
         {suggestions.map((s) => (
           <div key={s.driverId} className="rounded-md border p-3">
             <p className="font-medium">Score {s.score}</p>

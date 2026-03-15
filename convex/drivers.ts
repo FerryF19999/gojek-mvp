@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { isDriverSubscribed } from "./subscription";
 
 export const createDriver = mutation({
   args: {
@@ -23,6 +24,7 @@ export const createDriver = mutation({
       userId,
       vehicleType: args.vehicleType,
       availability: "offline",
+      subscriptionStatus: "inactive",
       rating: 4.8,
       lastLocation: { lat: args.lat, lng: args.lng, updatedAt: now },
       lastActiveAt: now,
@@ -54,6 +56,30 @@ export const updateDriverLocation = mutation({
   },
 });
 
+export const setDriverSubscription = mutation({
+  args: {
+    driverId: v.id("drivers"),
+    plan: v.string(),
+    subscribedUntil: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const driver = await ctx.db.get(args.driverId);
+    if (!driver) throw new Error("Driver not found");
+
+    const now = Date.now();
+    const status = args.subscribedUntil > now ? "active" : "inactive";
+
+    await ctx.db.patch(args.driverId, {
+      subscriptionPlan: args.plan,
+      subscribedUntil: args.subscribedUntil,
+      subscriptionStatus: status,
+      lastActiveAt: now,
+    });
+
+    return { ok: true, subscriptionStatus: status };
+  },
+});
+
 export const listDrivers = query({
   args: { availability: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -64,10 +90,18 @@ export const listDrivers = query({
           .collect()
       : await ctx.db.query("drivers").collect();
 
+    const now = Date.now();
     const hydrated = await Promise.all(
       drivers.map(async (d) => {
         const user = await ctx.db.get(d.userId);
-        return { ...d, userName: user?.name ?? "Unknown" };
+        const subscribed = isDriverSubscribed(d, now);
+        const badge = d.subscribedUntil == null ? "Not set" : subscribed ? "Subscribed" : "Expired";
+        return {
+          ...d,
+          userName: user?.name ?? "Unknown",
+          isSubscribed: subscribed,
+          subscriptionBadge: badge,
+        };
       }),
     );
 

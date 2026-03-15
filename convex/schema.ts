@@ -15,6 +15,9 @@ export default defineSchema({
     userId: v.id("users"),
     vehicleType: v.union(v.literal("motor"), v.literal("car")),
     availability: v.union(v.literal("online"), v.literal("offline"), v.literal("busy")),
+    subscriptionStatus: v.optional(v.union(v.literal("active"), v.literal("inactive"))),
+    subscribedUntil: v.optional(v.number()),
+    subscriptionPlan: v.optional(v.string()),
     rating: v.optional(v.number()),
     lastLocation: v.object({
       lat: v.number(),

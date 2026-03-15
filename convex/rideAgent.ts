@@ -2,6 +2,7 @@ import { internalMutation, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
+import { isDriverSubscribed } from "./subscription";
 
 type AgentSpeed = "slow" | "normal" | "fast";
 
@@ -101,6 +102,13 @@ export const startRideAgent = mutation({
       return { ok: true, alreadyRunning: true, runId: ride.agentRunId, speed: resolveSpeed(ride.agentSpeed) };
     }
 
+    if (ride.assignedDriverId) {
+      const assignedDriver = await ctx.db.get(ride.assignedDriverId);
+      if (!assignedDriver || !isDriverSubscribed(assignedDriver, Date.now())) {
+        throw new Error("Assigned driver subscription is inactive. Ride agent cannot be started.");
+      }
+    }
+
     for (const jobId of ride.agentJobIds ?? []) {
       await ctx.scheduler.cancel(jobId as Id<"_scheduled_functions">).catch(() => null);
     }
@@ -193,7 +201,7 @@ export const runRideAgentStep = internalMutation({
         .collect();
 
       const best = candidates
-        .filter((d) => d.vehicleType === ride.vehicleType)
+        .filter((d) => d.vehicleType === ride.vehicleType && isDriverSubscribed(d, Date.now()))
         .map((d) => ({
           driverId: d._id,
           distanceKm: haversineKm(ride.pickup.lat, ride.pickup.lng, d.lastLocation.lat, d.lastLocation.lng),
@@ -217,7 +225,7 @@ export const runRideAgentStep = internalMutation({
           rideId: args.rideId,
           actionType: "wait_driver",
           input: { step: args.step, speed },
-          output: { reason: `No online drivers found, retrying in ${retryMs}ms` },
+          output: { reason: `No subscribed online drivers found, retrying in ${retryMs}ms` },
         });
 
         return;

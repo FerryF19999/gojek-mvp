@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { isDriverSubscribed } from "./subscription";
 
 const nextRideCode = async (ctx: any) => {
   const rides = await ctx.db.query("rides").order("desc").take(1);
@@ -116,6 +117,7 @@ export const assignDriver = mutation({
     const driver = await ctx.db.get(args.driverId);
     if (!ride || !driver) throw new Error("Ride or driver not found");
     if (driver.availability !== "online") throw new Error("Driver is not online");
+    if (!isDriverSubscribed(driver, Date.now())) throw new Error("Driver subscription is inactive");
 
     const now = Date.now();
     await ctx.db.patch(args.driverId, { availability: "busy", lastActiveAt: now });

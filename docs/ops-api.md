@@ -127,6 +127,35 @@ Allowed speed: `slow | normal | fast`
 
 Returns selected ride fields + timeline + agent actions + payments.
 
+### 9) Set driver subscription
+
+`POST /api/ops/drivers/{driverId}/subscription`
+
+Body:
+
+```json
+{
+  "plan": "monthly_19k",
+  "months": 1
+}
+```
+
+or
+
+```json
+{
+  "plan": "monthly_19k",
+  "subscribedUntil": 1773570000000
+}
+```
+
+Rules:
+- `plan` must be `monthly_19k` (Rp 19,000/month display price)
+- Provide at least one of `months` or `subscribedUntil`
+- If `months` is provided, API computes `subscribedUntil = now + months*30days`
+- `months` must be `> 0`
+- `subscribedUntil` must be positive unix ms timestamp
+
 ---
 
 ## cURL Examples
@@ -178,4 +207,10 @@ curl -sS -X POST "$BASE_URL/api/ops/rides/$RIDE_ID/payment/paid" \
 
 curl -sS "$BASE_URL/api/ops/rides/$RIDE_ID" \
   -H "x-ops-key: $OPS_KEY"
+
+DRIVER_ID="<driver_id>"
+curl -sS -X POST "$BASE_URL/api/ops/drivers/$DRIVER_ID/subscription" \
+  -H "x-ops-key: $OPS_KEY" \
+  -H "content-type: application/json" \
+  -d '{"plan":"monthly_19k","months":1}'
 ```

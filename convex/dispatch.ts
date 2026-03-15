@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { isDriverSubscribed } from "./subscription";
 
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371;
@@ -22,8 +23,17 @@ export const dispatchSuggestions = query({
       .withIndex("by_availability", (q) => q.eq("availability", "online"))
       .collect();
 
-    const ranked = candidates
-      .filter((d) => d.vehicleType === ride.vehicleType)
+    const now = Date.now();
+    const eligible = candidates.filter((d) => d.vehicleType === ride.vehicleType && isDriverSubscribed(d, now));
+
+    if (eligible.length === 0) {
+      return {
+        suggestions: [],
+        reason: "No subscribed online drivers available",
+      };
+    }
+
+    const ranked = eligible
       .map((d) => {
         const distanceKm = haversineKm(ride.pickup.lat, ride.pickup.lng, d.lastLocation.lat, d.lastLocation.lng);
         const recentPenalty = Math.max(0, 120 - (Date.now() - d.lastActiveAt) / 1000) / 10;
@@ -40,7 +50,7 @@ export const dispatchSuggestions = query({
       .sort((a, b) => b.score - a.score)
       .slice(0, 3);
 
-    return ranked;
+    return { suggestions: ranked, reason: null };
   },
 });
 

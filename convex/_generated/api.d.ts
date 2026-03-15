@@ -17,6 +17,7 @@ import type * as payments from "../payments.js";
 import type * as rideAgent from "../rideAgent.js";
 import type * as rides from "../rides.js";
 import type * as seed from "../seed.js";
+import type * as subscription from "../subscription.js";
 import type * as waitlist from "../waitlist.js";
 import type * as webhooks from "../webhooks.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   rideAgent: typeof rideAgent;
   rides: typeof rides;
   seed: typeof seed;
+  subscription: typeof subscription;
   waitlist: typeof waitlist;
   webhooks: typeof webhooks;
 }>;

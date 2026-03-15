@@ -33,7 +33,9 @@ export default function DashboardPage() {
   const rides = useQuery(api.rides.listRides, { status: statusFilter || undefined }) || [];
   const drivers = useQuery(api.drivers.listDrivers, { availability: undefined }) || [];
   const selectedRide = useQuery(api.rides.getRide, selectedRideId ? { rideId: selectedRideId } : "skip");
-  const suggestions = useQuery(api.dispatch.dispatchSuggestions, selectedRideId ? { rideId: selectedRideId } : "skip") || [];
+  const suggestionResult =
+    useQuery(api.dispatch.dispatchSuggestions, selectedRideId ? { rideId: selectedRideId } : "skip") ||
+    { suggestions: [], reason: null };
   const agentCards =
     useQuery(api.agentActions.getRideAgentCards, selectedRideId ? { rideId: selectedRideId, limitPerAgent: 10 } : "skip") ||
     [];
@@ -230,6 +232,10 @@ export default function DashboardPage() {
             <RideDetail
               ride={selectedRide.ride}
               driverName={selectedRide.driver?.userName || selectedRide.ride.assignedDriverId || "-"}
+              isAssignedDriverSubscribed={
+                !selectedRide.ride.assignedDriverId ||
+                ((selectedRide.driver?.subscribedUntil as number | undefined) ?? 0) > Date.now()
+              }
               agentSpeed={agentSpeed}
               onSpeedChange={setAgentSpeed}
               onStartAgent={async () => {
@@ -268,8 +274,9 @@ export default function DashboardPage() {
             />
 
             <SuggestionCards
-              suggestions={suggestions}
-              loading={!suggestions}
+              suggestions={suggestionResult.suggestions}
+              reason={suggestionResult.reason}
+              loading={!suggestionResult}
               onAssign={async (driverId) => {
                 try {
                   await assignDriver({ rideId: selectedRide.ride._id, driverId, assignedBy: "operator-dashboard" });

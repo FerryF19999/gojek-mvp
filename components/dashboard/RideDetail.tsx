@@ -11,6 +11,7 @@ type AgentSpeed = "slow" | "normal" | "fast";
 export function RideDetail({
   ride,
   driverName,
+  isAssignedDriverSubscribed,
   agentSpeed,
   onSpeedChange,
   onSetStatus,
@@ -19,6 +20,7 @@ export function RideDetail({
 }: {
   ride: any;
   driverName: string;
+  isAssignedDriverSubscribed: boolean;
   agentSpeed: AgentSpeed;
   onSpeedChange: (speed: AgentSpeed) => void;
   onSetStatus: (status: "driver_arriving" | "picked_up" | "completed") => void;
@@ -26,6 +28,10 @@ export function RideDetail({
   onStopAgent: () => void;
 }) {
   const isAgentRunning = ride.agentStatus === "running";
+  const isBlockedBySubscription = !!ride.assignedDriverId && !isAssignedDriverSubscribed;
+  const blockedTitle = isBlockedBySubscription
+    ? "Assigned driver subscription expired. Renew driver subscription to continue."
+    : undefined;
 
   return (
     <Card>
@@ -55,16 +61,41 @@ export function RideDetail({
               <option value="fast">Fast</option>
             </Select>
           </div>
-          <Button onClick={onStartAgent} disabled={isAgentRunning}>Run ride agent</Button>
+          <Button onClick={onStartAgent} disabled={isAgentRunning || isBlockedBySubscription} title={blockedTitle}>
+            Run ride agent
+          </Button>
           <Button variant="outline" onClick={onStopAgent} disabled={!isAgentRunning}>Stop</Button>
         </div>
 
         <div className="grid gap-2 md:grid-cols-3">
-          <Button variant="outline" onClick={() => onSetStatus("driver_arriving")} disabled={isAgentRunning} title={isAgentRunning ? "Agent is running" : undefined}>Driver arriving</Button>
-          <Button variant="outline" onClick={() => onSetStatus("picked_up")} disabled={isAgentRunning} title={isAgentRunning ? "Agent is running" : undefined}>Picked up</Button>
-          <Button onClick={() => onSetStatus("completed")} disabled={isAgentRunning} title={isAgentRunning ? "Agent is running" : undefined}>Completed</Button>
+          <Button
+            variant="outline"
+            onClick={() => onSetStatus("driver_arriving")}
+            disabled={isAgentRunning || isBlockedBySubscription}
+            title={blockedTitle || (isAgentRunning ? "Agent is running" : undefined)}
+          >
+            Driver arriving
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onSetStatus("picked_up")}
+            disabled={isAgentRunning || isBlockedBySubscription}
+            title={blockedTitle || (isAgentRunning ? "Agent is running" : undefined)}
+          >
+            Picked up
+          </Button>
+          <Button
+            onClick={() => onSetStatus("completed")}
+            disabled={isAgentRunning || isBlockedBySubscription}
+            title={blockedTitle || (isAgentRunning ? "Agent is running" : undefined)}
+          >
+            Completed
+          </Button>
         </div>
         {isAgentRunning ? <p className="text-xs text-muted-foreground">Agent is running</p> : null}
+        {isBlockedBySubscription ? (
+          <p className="text-xs text-amber-600">Assigned driver subscription expired. Start/accept flow is blocked.</p>
+        ) : null}
       </CardContent>
     </Card>
   );
