@@ -476,6 +476,25 @@ export const runRideAgentStep = internalMutation({
       output: { status: args.step === "dispatching" ? "dispatching_checked" : args.step },
     });
 
+    // After driver accepts, STOP agent — driver controls the rest via API
+    // (arrive, complete endpoints handle state transitions)
+    if (args.step === "driver_arriving") {
+      await ctx.db.patch(args.rideId, {
+        agentStatus: "waiting_driver",
+        agentJobIds: [],
+        lastStepAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      await logRideAgentAction(ctx, {
+        rideId: args.rideId,
+        actionType: "agent_pause",
+        input: { step: args.step, speed },
+        output: { reason: "Driver accepted — agent paused. Driver controls ride via API (arrive/complete)." },
+      });
+      return;
+    }
+
     const upcomingStep = nextStep[args.step];
     if (!upcomingStep) {
       const doneRide = await ctx.db.get(args.rideId);
