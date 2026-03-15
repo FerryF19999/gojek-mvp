@@ -408,3 +408,56 @@ export const registerDriverDirect = mutation({
     };
   },
 });
+
+// ─── Driver accept/decline ride ───
+
+export const driverRespondToRide = mutation({
+  args: {
+    driverId: v.id("drivers"),
+    rideCode: v.string(),
+    response: v.union(v.literal("accepted"), v.literal("declined")),
+  },
+  handler: async (ctx, args) => {
+    const ride = await ctx.db
+      .query("rides")
+      .withIndex("by_code", (q) => q.eq("code", args.rideCode))
+      .unique();
+    if (!ride) throw new Error("Ride not found");
+
+    // Verify this driver is the assigned driver
+    if (!ride.assignedDriverId || String(ride.assignedDriverId) !== String(args.driverId)) {
+      throw new Error("You are not the assigned driver for this ride");
+    }
+
+    if (ride.driverResponseStatus === "accepted") {
+      return { alreadyResponded: true, response: "accepted" };
+    }
+    if (ride.driverResponseStatus === "declined") {
+      return { alreadyResponded: true, response: "declined" };
+    }
+
+    const now = Date.now();
+
+    if (args.response === "declined") {
+      // Add to declined list, unassign, set driver back online
+      const declinedIds = ride.declinedDriverIds ?? [];
+      await ctx.db.patch(ride._id, {
+        assignedDriverId: undefined,
+        driverResponseStatus: "declined",
+        declinedDriverIds: [...declinedIds, args.driverId],
+        updatedAt: now,
+      });
+      await ctx.db.patch(args.driverId, { availability: "online", lastActiveAt: now });
+
+      return { response: "declined", note: "Ride will be re-dispatched to another driver" };
+    }
+
+    // Accepted
+    await ctx.db.patch(ride._id, {
+      driverResponseStatus: "accepted",
+      updatedAt: now,
+    });
+
+    return { response: "accepted", rideCode: args.rideCode };
+  },
+});

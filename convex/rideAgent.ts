@@ -343,17 +343,11 @@ export const runRideAgentStep = internalMutation({
         },
       });
 
-      // Fire webhook notification to assigned driver
+      // Fire webhook notification to assigned driver — driver decides accept/decline
       await ctx.scheduler.runAfter(0, internal.rideAgent.notifyDriverWebhookAction, {
         rideId: args.rideId,
         driverId: best.driverId,
         runId: args.runId,
-      });
-
-      // Auto-accept for AI agent drivers (no human confirmation needed)
-      await ctx.db.patch(args.rideId, {
-        driverResponseStatus: "accepted",
-        updatedAt: Date.now(),
       });
     }
 
