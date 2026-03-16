@@ -37,8 +37,8 @@ interface FormData {
   city: string;
 }
 
-// Use Next.js API routes as proxy (avoids mixed-content HTTPS→HTTP issues)
-const API_BASE = "/api/whatsapp";
+// Direct HTTPS call to Baileys server via Nginx reverse proxy
+const API_BASE = "https://oc-196993-lsur.xc1.app/nemu-api";
 
 export default function DriverRegisterPage() {
   const [step, setStep] = useState<Step>("qr");
@@ -64,7 +64,7 @@ export default function DriverRegisterPage() {
     try {
       const newSessionId = `driver-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      const res = await fetch(`${API_BASE}/sessions`, {
+      const res = await fetch(`${API_BASE}/sessions/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: newSessionId }),

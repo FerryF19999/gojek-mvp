@@ -47,7 +47,7 @@ interface EarningsInfo {
   weekEarnings: number;
 }
 
-const API_BASE = "/api/whatsapp";
+const API_BASE = "https://oc-196993-lsur.xc1.app/nemu-api";
 
 function DriverDashboard() {
   const searchParams = useSearchParams();
