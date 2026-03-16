@@ -30,10 +30,10 @@ function matchAny(text: string, keywords: string[]): boolean {
   for (const kw of keywords) {
     // Exact match
     if (text === kw) return true;
-    // Starts with keyword
-    if (text.startsWith(kw + " ") || text.startsWith(kw)) return true;
+    // Starts with keyword + space (word boundary)
+    if (text.startsWith(kw + " ")) return true;
     // Contains keyword as whole word
-    const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    const regex = new RegExp(`(?:^|\\s|\\b)${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$|\\b)`);
     if (regex.test(text)) return true;
   }
   return false;
@@ -51,10 +51,10 @@ export function matchIntent(rawText: string): Intent {
   if (matchAny(t, ["stop", "offline", "istirahat", "brenti", "berhenti", "selesai narik", "off"]))
     return "GO_OFFLINE";
 
-  if (matchAny(t, ["ya", "yes", "ok", "oke", "gas", "mau", "siap", "boleh", "ayok", "ayo", "yoi", "yok"]))
+  if (matchAny(t, ["terima", "ya", "yes", "ok", "oke", "gas", "mau", "boleh", "ayok", "ayo", "yoi", "yok", "ambil"]))
     return "TERIMA";
 
-  if (matchAny(t, ["gak", "skip", "no", "nope", "lewat", "gk", "ngga", "nggak", "engga", "enggak", "ga", "tidak", "ogah", "males"]))
+  if (matchAny(t, ["tolak", "gak", "skip", "no", "nope", "lewat", "gk", "ngga", "nggak", "engga", "enggak", "tidak", "ogah", "males"]))
     return "TOLAK";
 
   if (matchAny(t, [
