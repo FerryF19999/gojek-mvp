@@ -260,6 +260,9 @@ export class SessionManager extends EventEmitter {
         }
       });
 
+      // Track connection time — only process messages AFTER this timestamp
+      const connectedAt = Math.floor(Date.now() / 1000);
+
       // Handle incoming messages
       sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
@@ -269,6 +272,17 @@ export class SessionManager extends EventEmitter {
           if (msg.key.remoteJid === "status@broadcast") continue;
           // Skip group messages for now
           if (msg.key.remoteJid?.endsWith("@g.us")) continue;
+
+          // CRITICAL: Only process messages sent AFTER connection (skip old/queued messages)
+          const msgTimestamp = typeof msg.messageTimestamp === "number" 
+            ? msg.messageTimestamp 
+            : typeof msg.messageTimestamp === "object" && msg.messageTimestamp 
+              ? Number(msg.messageTimestamp) 
+              : 0;
+          if (msgTimestamp > 0 && msgTimestamp < connectedAt - 5) {
+            // Message is older than connection time (with 5s grace), skip
+            continue;
+          }
 
           const fromPhone = msg.key.remoteJid?.replace("@s.whatsapp.net", "") || "";
           const driverPhone = session.info.phone || "";
