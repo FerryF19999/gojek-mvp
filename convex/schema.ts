@@ -181,4 +181,45 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_createdAt", ["createdAt"]),
+
+  driverWhatsappState: defineTable({
+    phone: v.string(),
+    driverId: v.optional(v.string()),
+    apiToken: v.optional(v.string()),
+    state: v.string(),
+    registrationStep: v.optional(v.string()),
+    currentRideCode: v.optional(v.string()),
+    tempData: v.optional(v.any()),
+    lastMessageAt: v.number(),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_driverId", ["driverId"]),
+
+  // Per-driver WhatsApp bot sessions (1 bot per driver model)
+  driverWhatsappSessions: defineTable({
+    sessionId: v.string(),
+    driverId: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    status: v.union(
+      v.literal("qr_pending"),
+      v.literal("connecting"),
+      v.literal("connected"),
+      v.literal("disconnected"),
+      v.literal("logged_out"),
+    ),
+    lastConnectedAt: v.optional(v.number()),
+    registrationData: v.optional(v.object({
+      fullName: v.optional(v.string()),
+      vehicleType: v.optional(v.union(v.literal("motor"), v.literal("car"))),
+      vehicleBrand: v.optional(v.string()),
+      vehiclePlate: v.optional(v.string()),
+      city: v.optional(v.string()),
+    })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_driverId", ["driverId"])
+    .index("by_phone", ["phone"])
+    .index("by_status", ["status"]),
 });

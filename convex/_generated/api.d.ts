@@ -25,6 +25,7 @@ import type * as stats from "../stats.js";
 import type * as subscription from "../subscription.js";
 import type * as waitlist from "../waitlist.js";
 import type * as webhooks from "../webhooks.js";
+import type * as whatsappState from "../whatsappState.js";
 
 import type {
   ApiFromModules,
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   subscription: typeof subscription;
   waitlist: typeof waitlist;
   webhooks: typeof webhooks;
+  whatsappState: typeof whatsappState;
 }>;
 
 /**

@@ -8,10 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy"
+    "convex:deploy": "convex deploy",
+    "wa:server": "npx tsx scripts/baileys-server.ts",
+    "wa:multi": "npx tsx scripts/baileys-multi-server.ts"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.17.4",
@@ -24,13 +27,15 @@
     "react-dom": "18.3.1",
     "react-leaflet": "^4.2.1",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "20.14.12",
     "@types/qrcode": "^1.5.6",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
+    "@types/ws": "^8.5.12",
     "autoprefixer": "^10.4.27",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5",
