@@ -48,7 +48,7 @@ const wsClients: Set<WebSocket> = new Set();
 
 // ─── In-Memory Driver State ───
 
-type RegistrationState = "unregistered" | "registering_name" | "registering_area" | "registered";
+type RegistrationState = "unregistered" | "registering_name" | "registering_vehicle_type" | "registering_vehicle_brand" | "registering_plate" | "registering_city" | "registered";
 
 interface DriverBotState {
   state: DriverState;
@@ -62,7 +62,10 @@ interface DriverBotState {
     price: number;
   };
   name?: string;
-  area?: string;
+  vehicleType?: string; // motor / mobil
+  vehicleBrand?: string; // merk & tipe (e.g. "Honda Vario 150")
+  plate?: string; // nomor plat
+  city?: string;
   phone?: string;
   todayOrders: number;
   todayEarnings: number;
@@ -103,21 +106,42 @@ async function handleDriverMessage(
   // ─── Registration flow (must complete before any commands) ───
 
   if (ds.registration === "unregistered") {
-    // Welcome not sent yet (edge case) — ask for name
     ds.registration = "registering_name";
-    return `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Ketik nama lengkap kamu:`;
+    return `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Yuk isi data dulu.\n\nKetik *nama lengkap* kamu:`;
   }
 
   if (ds.registration === "registering_name") {
     ds.name = text;
-    ds.registration = "registering_area";
-    return `Oke ${ds.name}! Sekarang ketik area/kota kamu (contoh: Jakarta Selatan):`;
+    ds.registration = "registering_vehicle_type";
+    return `Oke ${ds.name}! 👍\n\nKendaraan kamu apa?\nKetik *motor* atau *mobil*:`;
   }
 
-  if (ds.registration === "registering_area") {
-    ds.area = text;
+  if (ds.registration === "registering_vehicle_type") {
+    const lower = text.toLowerCase();
+    if (lower !== "motor" && lower !== "mobil") {
+      return `Ketik *motor* atau *mobil* aja ya:`;
+    }
+    ds.vehicleType = lower;
+    ds.registration = "registering_vehicle_brand";
+    return `${ds.vehicleType === "motor" ? "🏍️" : "🚗"} Oke ${ds.vehicleType}!\n\nSekarang ketik *merk & tipe* kendaraan kamu:\n(contoh: Honda Vario 150, Toyota Avanza, dll)`;
+  }
+
+  if (ds.registration === "registering_vehicle_brand") {
+    ds.vehicleBrand = text;
+    ds.registration = "registering_plate";
+    return `Mantap, ${ds.vehicleBrand}! 🔥\n\nSekarang ketik *nomor plat* kendaraan:\n(contoh: B 1234 ABC)`;
+  }
+
+  if (ds.registration === "registering_plate") {
+    ds.plate = text.toUpperCase();
+    ds.registration = "registering_city";
+    return `Oke plat ${ds.plate} ✅\n\nTerakhir, ketik *kota/area* operasi kamu:\n(contoh: Jakarta Selatan, Bandung, Surabaya)`;
+  }
+
+  if (ds.registration === "registering_city") {
+    ds.city = text;
     ds.registration = "registered";
-    return `✅ Pendaftaran selesai!\n\nNama: ${ds.name}\nArea: ${ds.area}\n\nKetik SIAP untuk mulai terima order\nKetik HELP untuk bantuan`;
+    return `✅ *Pendaftaran selesai!*\n\n📋 Data Driver:\nNama: ${ds.name}\nKendaraan: ${ds.vehicleType === "motor" ? "🏍️" : "🚗"} ${ds.vehicleBrand}\nPlat: ${ds.plate}\nKota: ${ds.city}\n\nKetik *SIAP* untuk mulai terima order\nKetik *HELP* untuk bantuan\n\nAyo narik! 💪`;
   }
 
   // ─── Below here: only registered drivers ───
@@ -320,7 +344,7 @@ manager.on("connected", async (sessionId: string, phone: string) => {
       try {
         const sentResult = await manager.sendToDriver(
           sessionId,
-          `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Ketik nama lengkap kamu:`,
+          `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Yuk isi data dulu.\n\nKetik *nama lengkap* kamu:`,
         );
         if (sentResult?.key?.id) {
           botSentMessages.add(sentResult.key.id);
