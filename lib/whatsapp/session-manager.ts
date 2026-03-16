@@ -317,10 +317,19 @@ export class SessionManager extends EventEmitter {
             isSelfChat,
           };
 
-          // ONLY process self-chat messages (driver messaging themselves)
-          // fromMe alone is NOT enough — it catches messages sent to OTHER chats too
+          // Process messages in two cases:
+          // 1. Self-chat (driver messaging themselves) — fromMe required
+          // 2. Incoming from others (!fromMe) — someone chatting WITH the driver's number
+          // Skip: outgoing messages to others (fromMe && !isSelfChat) — those are driver chatting elsewhere
+          if (fromMe && !isSelfChat) {
+            // Driver sending message to someone else — ignore
+            continue;
+          }
           if (isSelfChat && fromMe) {
             console.log(`[SessionManager] 📩 Driver ${driverPhone} self-chat command: "${text}"`);
+            this.emit("message", sessionId, driverMessage);
+          } else if (!fromMe) {
+            console.log(`[SessionManager] 📩 Incoming to driver ${driverPhone} from ${fromPhone}: "${text}"`);
             this.emit("message", sessionId, driverMessage);
 
             // Forward to webhook
@@ -418,19 +427,20 @@ export class SessionManager extends EventEmitter {
   /**
    * Send message to any number from the driver's WhatsApp
    */
-  async sendMessage(sessionId: string, phone: string, text: string): Promise<boolean> {
+  async sendMessage(sessionId: string, phone: string, text: string): Promise<any> {
     const session = this.sessions.get(sessionId);
     if (!session?.socket || session.info.status !== "connected") {
-      return false;
+      return null;
     }
 
     try {
       const jid = formatJid(phone);
-      await session.socket.sendMessage(jid, { text });
-      return true;
+      const sentMsg = await session.socket.sendMessage(jid, { text });
+      console.log(`[SessionManager] 📤 Sent to ${phone}: "${text.substring(0, 50)}..." (msgId: ${sentMsg?.key?.id})`);
+      return sentMsg;
     } catch (error) {
       console.error(`[SessionManager] sendMessage failed for ${sessionId}:`, error);
-      return false;
+      return null;
     }
   }
 

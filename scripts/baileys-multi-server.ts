@@ -374,10 +374,19 @@ manager.on("message", async (sessionId: string, message: IncomingDriverMessage) 
     return;
   }
 
+  // Determine reply target: self-chat → sendToDriver, incoming from others → sendMessage to sender
+  const replyTo = async (text: string) => {
+    if (message.isSelfChat || message.fromMe) {
+      return manager.sendToDriver(sessionId, text);
+    } else {
+      return manager.sendMessage(sessionId, message.fromPhone, text);
+    }
+  };
+
   try {
     const reply = await handleDriverMessage(sessionId, message);
     if (reply) {
-      const sentResult = await manager.sendToDriver(sessionId, reply);
+      const sentResult = await replyTo(reply);
       // Track sent message ID to skip when it comes back as fromMe
       const sentMsgId = sentResult?.key?.id;
       if (sentMsgId) {
@@ -389,7 +398,7 @@ manager.on("message", async (sessionId: string, message: IncomingDriverMessage) 
   } catch (error) {
     console.error(`[Bot] Error handling message for ${sessionId}:`, error);
     try {
-      await manager.sendToDriver(sessionId, templates.genericError());
+      await replyTo(templates.genericError());
     } catch (e) {
       // Can't even send error reply
     }
