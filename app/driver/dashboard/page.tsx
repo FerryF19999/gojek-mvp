@@ -47,7 +47,7 @@ interface EarningsInfo {
   weekEarnings: number;
 }
 
-const BAILEYS_URL = process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "http://localhost:3002";
+const API_BASE = "/api/whatsapp";
 
 function DriverDashboard() {
   const searchParams = useSearchParams();
@@ -144,7 +144,7 @@ function DriverDashboard() {
 
     try {
       // Find session by scanning all sessions
-      const res = await fetch(`${BAILEYS_URL}/sessions`);
+      const res = await fetch(`${API_BASE}/sessions`);
       if (!res.ok) return;
 
       const data = await res.json();

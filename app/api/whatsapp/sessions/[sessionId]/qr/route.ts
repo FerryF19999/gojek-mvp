@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BAILEYS_URL = process.env.BAILEYS_MULTI_URL || "http://localhost:3002";
+const BAILEYS_URL = process.env.BAILEYS_MULTI_URL || process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "http://localhost:3002";
 
 export async function GET(
   req: NextRequest,

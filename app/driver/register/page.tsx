@@ -37,7 +37,8 @@ interface FormData {
   city: string;
 }
 
-const BAILEYS_URL = process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "http://localhost:3002";
+// Use Next.js API routes as proxy (avoids mixed-content HTTPS→HTTP issues)
+const API_BASE = "/api/whatsapp";
 
 export default function DriverRegisterPage() {
   const [step, setStep] = useState<Step>("qr");
@@ -63,7 +64,7 @@ export default function DriverRegisterPage() {
     try {
       const newSessionId = `driver-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      const res = await fetch(`${BAILEYS_URL}/sessions/create`, {
+      const res = await fetch(`${API_BASE}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: newSessionId }),
@@ -99,7 +100,7 @@ export default function DriverRegisterPage() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`${BAILEYS_URL}/sessions/${sid}/qr`);
+        const res = await fetch(`${API_BASE}/sessions/${sid}/qr`);
         if (!res.ok) return;
 
         const data: SessionStatus = await res.json();
@@ -126,10 +127,12 @@ export default function DriverRegisterPage() {
     pollRef.current = setInterval(poll, 3000);
   }, []);
 
-  // Also try WebSocket for real-time updates
+  // Also try WebSocket for real-time updates (only works if BAILEYS WS is accessible)
   const connectWebSocket = useCallback(() => {
     try {
-      const wsUrl = BAILEYS_URL.replace("http", "ws") + "/ws";
+      const baileysDirect = process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "";
+      if (!baileysDirect) return; // Skip WS if no direct URL configured
+      const wsUrl = baileysDirect.replace("http", "ws") + "/ws";
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -208,7 +211,7 @@ export default function DriverRegisterPage() {
 
         // Link driver to session
         try {
-          await fetch(`${BAILEYS_URL}/sessions/${sessionId}/send`, {
+          await fetch(`${API_BASE}/sessions/${sessionId}/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
