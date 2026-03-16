@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BAILEYS_URL = process.env.BAILEYS_MULTI_URL || process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "http://localhost:3002";
+const BAILEYS_URL = process.env.BAILEYS_MULTI_URL || process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "https://oc-196993-lsur.xc1.app/nemu-api";
 
 export async function GET() {
   try {
