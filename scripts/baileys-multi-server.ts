@@ -283,6 +283,9 @@ manager.on("qr", async (sessionId: string, qr: string) => {
   }
 });
 
+// Track welcome messages sent per session (prevent spam on reconnect)
+const welcomeSent = new Map<string, number>();
+
 manager.on("connected", async (sessionId: string, phone: string) => {
   broadcast("connected", { sessionId, phone });
 
@@ -290,14 +293,26 @@ manager.on("connected", async (sessionId: string, phone: string) => {
   const ds = getDriverState(sessionId);
   ds.phone = phone;
 
-  // Send welcome message
+  // Send welcome message ONLY ONCE per session (or after 1 hour cooldown)
+  const lastWelcome = welcomeSent.get(sessionId) || 0;
+  const cooldownMs = 60 * 60 * 1000; // 1 hour
+  if (Date.now() - lastWelcome < cooldownMs) {
+    console.log(`[Bot] Welcome already sent to ${sessionId}, skipping (cooldown)`);
+    return;
+  }
+  welcomeSent.set(sessionId, Date.now());
+
   console.log(`[Bot] Sending welcome message to session ${sessionId} (${phone})`);
   setTimeout(async () => {
     try {
-      await manager.sendToDriver(
+      const sentResult = await manager.sendToDriver(
         sessionId,
         `🏍️ Selamat datang di NEMU Ojek!\n\nKetik SIAP untuk mulai terima order\nKetik HELP untuk bantuan\n\nAyo narik! 💪`,
       );
+      if (sentResult?.key?.id) {
+        botSentMessages.add(sentResult.key.id);
+        setTimeout(() => botSentMessages.delete(sentResult.key.id!), 30000);
+      }
     } catch (e) {
       console.error(`[Bot] Failed to send welcome to ${sessionId}:`, e);
     }
@@ -316,6 +331,9 @@ manager.on("logged_out", (sessionId: string) => {
 
 // ─── MAIN: Process messages through bot logic instead of webhook ───
 
+// Track messages sent by bot to avoid feedback loops
+const botSentMessages = new Set<string>();
+
 manager.on("message", async (sessionId: string, message: IncomingDriverMessage) => {
   broadcast("message", { sessionId, text: message.text, fromMe: message.fromMe });
 
@@ -325,10 +343,29 @@ manager.on("message", async (sessionId: string, message: IncomingDriverMessage) 
   // Skip messages from others (only process driver's own messages)
   if (!message.fromMe && !message.isSelfChat) return;
 
+  // CRITICAL: Skip bot's own replies to prevent infinite loop
+  // Check by messageId first, then by text content as fallback
+  if (message.messageId && botSentMessages.has(message.messageId)) {
+    botSentMessages.delete(message.messageId);
+    return;
+  }
+  // Also skip if the text matches known bot reply patterns
+  const botPatterns = ["✅ Status", "🏍️ Selamat datang", "📊 Hari ini", "🔔 ORDER BARU", "👍 Order ditolak", "🛣️ Anter ke", "💰 Order selesai", "Kamu udah online", "Gak ada order", "Kamu belum"];
+  if (message.fromMe && botPatterns.some(p => message.text!.startsWith(p))) {
+    console.log(`[Bot] Skipping own reply: "${message.text!.substring(0, 50)}..."`);
+    return;
+  }
+
   try {
     const reply = await handleDriverMessage(sessionId, message);
     if (reply) {
-      await manager.sendToDriver(sessionId, reply);
+      const sentResult = await manager.sendToDriver(sessionId, reply);
+      // Track sent message ID to skip when it comes back as fromMe
+      const sentMsgId = sentResult?.key?.id;
+      if (sentMsgId) {
+        botSentMessages.add(sentMsgId);
+        setTimeout(() => botSentMessages.delete(sentMsgId), 30000);
+      }
       broadcast("bot_reply", { sessionId, reply });
     }
   } catch (error) {

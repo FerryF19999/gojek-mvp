@@ -376,28 +376,28 @@ export class SessionManager extends EventEmitter {
   /**
    * Send a message to the driver's own WhatsApp (self-chat / Notes to Self)
    */
-  async sendToDriver(sessionId: string, text: string): Promise<boolean> {
+  async sendToDriver(sessionId: string, text: string): Promise<any> {
     const session = this.sessions.get(sessionId);
     if (!session?.socket || session.info.status !== "connected") {
       console.warn(`[SessionManager] Cannot send to ${sessionId}: not connected`);
-      return false;
+      return null;
     }
 
     const driverPhone = session.info.phone;
     if (!driverPhone) {
       console.warn(`[SessionManager] Cannot send to ${sessionId}: no phone number`);
-      return false;
+      return null;
     }
 
     try {
       // Send to driver's own number (self-chat)
       const jid = `${driverPhone}@s.whatsapp.net`;
-      await session.socket.sendMessage(jid, { text });
-      console.log(`[SessionManager] 📤 Sent to driver ${driverPhone}: "${text.substring(0, 50)}..."`);
-      return true;
+      const sentMsg = await session.socket.sendMessage(jid, { text });
+      console.log(`[SessionManager] 📤 Sent to driver ${driverPhone}: "${text.substring(0, 50)}..." (msgId: ${sentMsg?.key?.id})`);
+      return sentMsg;
     } catch (error) {
       console.error(`[SessionManager] Failed to send to ${sessionId}:`, error);
-      return false;
+      return null;
     }
   }
 
