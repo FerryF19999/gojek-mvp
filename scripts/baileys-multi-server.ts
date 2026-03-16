@@ -50,7 +50,7 @@ const wsClients: Set<WebSocket> = new Set();
 
 // ─── In-Memory Driver State ───
 
-type RegistrationState = "unregistered" | "registering_name" | "registering_vehicle_type" | "registering_vehicle_brand" | "registering_plate" | "registering_city" | "registered";
+type RegistrationState = "unregistered" | "registering_name" | "registering_vehicle_type" | "registering_vehicle_brand" | "registering_plate" | "registering_city" | "registering_ktp" | "registering_sim" | "registering_payment_method" | "registering_payment_number" | "registering_confirm" | "registered";
 
 interface DriverBotState {
   state: DriverState;
@@ -68,6 +68,10 @@ interface DriverBotState {
   vehicleBrand?: string; // merk & tipe (e.g. "Honda Vario 150")
   plate?: string; // nomor plat
   city?: string;
+  ktp?: string; // nomor KTP
+  sim?: string; // nomor SIM
+  paymentMethod?: string; // ovo / gopay / dana / cash
+  paymentNumber?: string; // nomor e-wallet
   phone?: string;
   todayOrders: number;
   todayEarnings: number;
@@ -169,13 +173,79 @@ async function handleDriverMessage(
   if (ds.registration === "registering_plate") {
     ds.plate = text.toUpperCase();
     ds.registration = "registering_city";
-    return `Oke plat ${ds.plate} ✅\n\nTerakhir, ketik *kota/area* operasi kamu:\n(contoh: Jakarta Selatan, Bandung, Surabaya)`;
+    return `Oke plat ${ds.plate} ✅\n\nKetik *kota/area* operasi kamu:\n(contoh: Jakarta Selatan, Bandung, Surabaya)`;
   }
 
   if (ds.registration === "registering_city") {
     ds.city = text;
-    ds.registration = "registered";
-    return `✅ *Pendaftaran selesai!*\n\n📋 Data Driver:\nNama: ${ds.name}\nKendaraan: ${ds.vehicleType === "motor" ? "🏍️" : "🚗"} ${ds.vehicleBrand}\nPlat: ${ds.plate}\nKota: ${ds.city}\n\nKetik *SIAP* untuk mulai terima order\nKetik *HELP* untuk bantuan\n\nAyo narik! 💪`;
+    ds.registration = "registering_ktp";
+    return `📍 ${ds.city} oke!\n\nSekarang ketik *nomor KTP* kamu (16 digit):`;
+  }
+
+  if (ds.registration === "registering_ktp") {
+    const cleaned = text.replace(/\s/g, "");
+    if (!/^\d{16}$/.test(cleaned)) {
+      return `❌ Nomor KTP harus 16 digit angka. Coba ketik ulang:`;
+    }
+    ds.ktp = cleaned;
+    ds.registration = "registering_sim";
+    return `✅ KTP tercatat!\n\nSekarang ketik *nomor SIM* kamu:`;
+  }
+
+  if (ds.registration === "registering_sim") {
+    ds.sim = text.replace(/\s/g, "");
+    ds.registration = "registering_payment_method";
+    return `✅ SIM tercatat!\n\nPilih metode pembayaran untuk terima uang dari penumpang:\n\n*1.* OVO\n*2.* GoPay\n*3.* DANA\n*4.* Cash aja\n\nKetik angka atau nama (contoh: 1 atau OVO):`;
+  }
+
+  if (ds.registration === "registering_payment_method") {
+    const lower = text.toLowerCase().trim();
+    const methodMap: Record<string, string> = {
+      "1": "OVO", "ovo": "OVO",
+      "2": "GoPay", "gopay": "GoPay",
+      "3": "DANA", "dana": "DANA",
+      "4": "Cash", "cash": "Cash", "tunai": "Cash",
+    };
+    const method = methodMap[lower];
+    if (!method) {
+      return `Ketik *1* (OVO), *2* (GoPay), *3* (DANA), atau *4* (Cash):`;
+    }
+    ds.paymentMethod = method;
+    if (method === "Cash") {
+      ds.paymentNumber = "-";
+      ds.registration = "registering_confirm";
+      return `💵 Cash oke!\n\n📋 *Data Pendaftaran:*\n\nNama: ${ds.name}\nKendaraan: ${ds.vehicleType === "motor" ? "🏍️" : "🚗"} ${ds.vehicleBrand}\nPlat: ${ds.plate}\nKota: ${ds.city}\nKTP: ${ds.ktp}\nSIM: ${ds.sim}\nPembayaran: ${ds.paymentMethod}\n\nKetik *OK* untuk konfirmasi atau *ULANG* untuk isi ulang:`;
+    }
+    ds.registration = "registering_payment_number";
+    return `${method} oke! 💰\n\nKetik *nomor ${method}* kamu:`;
+  }
+
+  if (ds.registration === "registering_payment_number") {
+    ds.paymentNumber = text.replace(/\s/g, "");
+    ds.registration = "registering_confirm";
+    return `📋 *Data Pendaftaran:*\n\nNama: ${ds.name}\nKendaraan: ${ds.vehicleType === "motor" ? "🏍️" : "🚗"} ${ds.vehicleBrand}\nPlat: ${ds.plate}\nKota: ${ds.city}\nKTP: ${ds.ktp}\nSIM: ${ds.sim}\nPembayaran: ${ds.paymentMethod} (${ds.paymentNumber})\n\nKetik *OK* untuk konfirmasi atau *ULANG* untuk isi ulang:`;
+  }
+
+  if (ds.registration === "registering_confirm") {
+    const lower = text.toLowerCase().trim();
+    if (lower === "ulang" || lower === "ulangi" || lower === "reset") {
+      ds.registration = "registering_name";
+      ds.name = undefined;
+      ds.vehicleType = undefined;
+      ds.vehicleBrand = undefined;
+      ds.plate = undefined;
+      ds.city = undefined;
+      ds.ktp = undefined;
+      ds.sim = undefined;
+      ds.paymentMethod = undefined;
+      ds.paymentNumber = undefined;
+      return `🔄 Oke, ulang dari awal!\n\nKetik *nama lengkap* kamu:`;
+    }
+    if (lower === "ok" || lower === "oke" || lower === "ya" || lower === "yes" || lower === "konfirmasi") {
+      ds.registration = "registered";
+      return `✅ *Pendaftaran selesai!*\n\n🎉 Selamat, ${ds.name}! Kamu resmi jadi driver NEMU Ojek.\n\nKetik *SIAP* untuk mulai terima order\nKetik *HELP* untuk bantuan\n\nAyo narik! 💪`;
+    }
+    return `Ketik *OK* untuk konfirmasi atau *ULANG* untuk isi ulang data:`;
   }
 
   // ─── Below here: only registered drivers ───
