@@ -284,9 +284,12 @@ export class SessionManager extends EventEmitter {
             continue;
           }
 
-          const fromPhone = msg.key.remoteJid?.replace("@s.whatsapp.net", "") || "";
+          const remoteJid = msg.key.remoteJid || "";
+          const fromPhone = remoteJid.replace("@s.whatsapp.net", "").replace("@lid", "") || "";
           const driverPhone = session.info.phone || "";
-          const isSelfChat = fromPhone === driverPhone;
+          // Self-chat: either phone match OR fromMe with LID format (WA uses @lid for self-chat now)
+          const isLidFormat = remoteJid.endsWith("@lid");
+          const isSelfChat = fromPhone === driverPhone || (msg.key.fromMe && isLidFormat);
           const fromMe = msg.key.fromMe || false;
 
           const text =
@@ -319,17 +322,14 @@ export class SessionManager extends EventEmitter {
 
           console.log(`[SessionManager] 📨 RAW msg: from=${fromPhone} driver=${driverPhone} fromMe=${fromMe} isSelfChat=${isSelfChat} text="${(text||'').substring(0,50)}" ts=${msgTimestamp}`);
 
-          // Process messages in two cases:
-          // 1. Self-chat (driver messaging themselves) — fromMe required
-          // 2. Incoming from others (!fromMe) — someone chatting WITH the driver's number
-          // Skip: outgoing messages to others (fromMe && !isSelfChat) — those are driver chatting elsewhere
-          if (fromMe && !isSelfChat) {
-            // Driver sending message to someone else — ignore
-            continue;
-          }
-          if (isSelfChat && fromMe) {
-            console.log(`[SessionManager] 📩 Driver ${driverPhone} self-chat command: "${text}"`);
+          // Process fromMe messages (driver typing commands) — anti-loop handled by botSentMessages
+          // Also process incoming from others (!fromMe) if it's self-chat or direct message
+          if (fromMe) {
+            console.log(`[SessionManager] 📩 Driver ${driverPhone} command: "${text}" (selfChat=${isSelfChat})`);
             this.emit("message", sessionId, driverMessage);
+          } else if (!fromMe && isSelfChat) {
+            // Bot's reply appearing in self-chat — skip to avoid loop
+            continue;
           } else if (!fromMe) {
             console.log(`[SessionManager] 📩 Incoming to driver ${driverPhone} from ${fromPhone}: "${text}"`);
             this.emit("message", sessionId, driverMessage);
