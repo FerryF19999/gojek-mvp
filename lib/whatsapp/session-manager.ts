@@ -273,14 +273,14 @@ export class SessionManager extends EventEmitter {
           // Skip group messages for now
           if (msg.key.remoteJid?.endsWith("@g.us")) continue;
 
-          // CRITICAL: Only process messages sent AFTER connection (skip old/queued messages)
+          // Only skip very old messages (more than 30 seconds before connection)
           const msgTimestamp = typeof msg.messageTimestamp === "number" 
             ? msg.messageTimestamp 
             : typeof msg.messageTimestamp === "object" && msg.messageTimestamp 
               ? Number(msg.messageTimestamp) 
               : 0;
-          if (msgTimestamp > 0 && msgTimestamp < connectedAt - 5) {
-            // Message is older than connection time (with 5s grace), skip
+          if (msgTimestamp > 0 && msgTimestamp < connectedAt - 30) {
+            console.log(`[SessionManager] ⏭️ Skipping old message (ts: ${msgTimestamp}, connectedAt: ${connectedAt}, diff: ${connectedAt - msgTimestamp}s)`);
             continue;
           }
 
@@ -316,6 +316,8 @@ export class SessionManager extends EventEmitter {
             timestamp: typeof msg.messageTimestamp === "number" ? msg.messageTimestamp : undefined,
             isSelfChat,
           };
+
+          console.log(`[SessionManager] 📨 RAW msg: from=${fromPhone} driver=${driverPhone} fromMe=${fromMe} isSelfChat=${isSelfChat} text="${(text||'').substring(0,50)}" ts=${msgTimestamp}`);
 
           // Process messages in two cases:
           // 1. Self-chat (driver messaging themselves) — fromMe required
