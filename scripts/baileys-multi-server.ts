@@ -103,6 +103,7 @@ async function handleDriverMessage(
   // ─── Registration flow (must complete before any commands) ───
 
   if (ds.registration === "unregistered") {
+    // Welcome not sent yet (edge case) — ask for name
     ds.registration = "registering_name";
     return `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Ketik nama lengkap kamu:`;
   }
@@ -296,13 +297,44 @@ manager.on("qr", async (sessionId: string, qr: string) => {
   }
 });
 
+// Track welcome sent per session (1x only)
+const welcomeSent = new Set<string>();
+
 manager.on("connected", async (sessionId: string, phone: string) => {
   broadcast("connected", { sessionId, phone });
 
-  // Initialize driver state (no welcome message — wait for driver to initiate)
   const ds = getDriverState(sessionId);
   ds.phone = phone;
-  console.log(`[Bot] Session ${sessionId} connected (${phone}) — waiting for driver to initiate`);
+
+  // Send welcome ONCE per session — invite to register
+  if (welcomeSent.has(sessionId)) {
+    console.log(`[Bot] Welcome already sent to ${sessionId}, skipping`);
+    return;
+  }
+  welcomeSent.add(sessionId);
+
+  // Only send if unregistered
+  if (ds.registration !== "registered") {
+    console.log(`[Bot] Sending registration invite to ${sessionId} (${phone})`);
+    setTimeout(async () => {
+      try {
+        const sentResult = await manager.sendToDriver(
+          sessionId,
+          `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Ketik nama lengkap kamu:`,
+        );
+        if (sentResult?.key?.id) {
+          botSentMessages.add(sentResult.key.id);
+          setTimeout(() => botSentMessages.delete(sentResult.key.id!), 30000);
+        }
+        // Move to registering_name so next message = name input
+        ds.registration = "registering_name";
+      } catch (e) {
+        console.error(`[Bot] Failed to send welcome to ${sessionId}:`, e);
+      }
+    }, 2000);
+  } else {
+    console.log(`[Bot] ${sessionId} already registered, skipping welcome`);
+  }
 });
 
 manager.on("disconnected", (sessionId: string, reason: string) => {
