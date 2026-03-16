@@ -4,3 +4,4 @@ node_modules
 .env*.local
 convex/.env.local
 .baileys-sessions/
+.driver-states.json

@@ -31,6 +31,8 @@
  *   CONVEX_URL        — (Optional) Convex backend URL for syncing state
  */
 
+import fs from "fs";
+import path from "path";
 import { createServer, IncomingMessage, ServerResponse } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { SessionManager, getSessionManager, SessionInfo, IncomingDriverMessage } from "../lib/whatsapp/session-manager";
@@ -73,6 +75,38 @@ interface DriverBotState {
 }
 
 const driverStates = new Map<string, DriverBotState>();
+
+// ─── Persist driver states to file ───
+const STATES_FILE = path.join(__dirname, "..", ".driver-states.json");
+
+function saveDriverStates() {
+  try {
+    const data: Record<string, any> = {};
+    for (const [id, ds] of driverStates) {
+      data[id] = { ...ds };
+    }
+    fs.writeFileSync(STATES_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error("[Bot] Failed to save driver states:", e);
+  }
+}
+
+function loadDriverStates() {
+  try {
+    if (fs.existsSync(STATES_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STATES_FILE, "utf-8"));
+      for (const [id, ds] of Object.entries(data)) {
+        driverStates.set(id, ds as DriverBotState);
+      }
+      console.log(`[Bot] Loaded ${driverStates.size} driver states from disk`);
+    }
+  } catch (e) {
+    console.error("[Bot] Failed to load driver states:", e);
+  }
+}
+
+// Load on startup
+loadDriverStates();
 
 function getDriverState(sessionId: string): DriverBotState {
   if (!driverStates.has(sessionId)) {
@@ -419,6 +453,8 @@ manager.on("message", async (sessionId: string, message: IncomingDriverMessage) 
       }
       broadcast("bot_reply", { sessionId, reply });
     }
+    // Persist state after every message
+    saveDriverStates();
   } catch (error) {
     console.error(`[Bot] Error handling message for ${sessionId}:`, error);
     try {
