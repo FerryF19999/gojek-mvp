@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function DriverGpsPage() {
+export default function DriverGpsWrapper() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", color: "#94a3b8" }}>⏳ Memuat GPS...</div>}>
+      <DriverGpsPage />
+    </Suspense>
+  );
+}
+
+function DriverGpsPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 

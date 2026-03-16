@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 
 /**
  * Driver Dashboard — Shows driver status, current order, earnings, WA connection
  */
+
+export default function DriverDashboardPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", color: "#94a3b8" }}>⏳ Memuat...</div>}>
+      <DriverDashboard />
+    </Suspense>
+  );
+}
 
 interface DriverInfo {
   name: string;
@@ -41,7 +49,7 @@ interface EarningsInfo {
 
 const BAILEYS_URL = process.env.NEXT_PUBLIC_BAILEYS_MULTI_URL || "http://localhost:3002";
 
-export default function DriverDashboard() {
+function DriverDashboard() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
