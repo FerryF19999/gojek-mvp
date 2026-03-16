@@ -303,10 +303,10 @@ export class SessionManager extends EventEmitter {
             isSelfChat,
           };
 
-          // Only process commands from the driver themselves (self-chat or fromMe)
-          // Ignore messages from other people chatting with the driver
-          if (fromMe || isSelfChat) {
-            console.log(`[SessionManager] 📩 Driver ${driverPhone} command: "${text}"`);
+          // ONLY process self-chat messages (driver messaging themselves)
+          // fromMe alone is NOT enough — it catches messages sent to OTHER chats too
+          if (isSelfChat && fromMe) {
+            console.log(`[SessionManager] 📩 Driver ${driverPhone} self-chat command: "${text}"`);
             this.emit("message", sessionId, driverMessage);
 
             // Forward to webhook

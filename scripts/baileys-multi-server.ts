@@ -48,9 +48,12 @@ const wsClients: Set<WebSocket> = new Set();
 
 // ─── In-Memory Driver State ───
 
+type RegistrationState = "unregistered" | "registering_name" | "registering_area" | "registered";
+
 interface DriverBotState {
   state: DriverState;
   availability: "online" | "offline";
+  registration: RegistrationState;
   currentRide?: {
     rideCode: string;
     customerName: string;
@@ -59,6 +62,7 @@ interface DriverBotState {
     price: number;
   };
   name?: string;
+  area?: string;
   phone?: string;
   todayOrders: number;
   todayEarnings: number;
@@ -72,6 +76,7 @@ function getDriverState(sessionId: string): DriverBotState {
     driverStates.set(sessionId, {
       state: "idle",
       availability: "offline",
+      registration: "unregistered",
       todayOrders: 0,
       todayEarnings: 0,
       lastMessageAt: Date.now(),
@@ -93,7 +98,28 @@ async function handleDriverMessage(
   ds.lastMessageAt = Date.now();
   ds.phone = msg.driverPhone;
 
-  console.log(`[Bot] Session ${sessionId} | State: ${ds.state} | Avail: ${ds.availability} | Msg: "${text}"`);
+  console.log(`[Bot] Session ${sessionId} | Reg: ${ds.registration} | State: ${ds.state} | Avail: ${ds.availability} | Msg: "${text}"`);
+
+  // ─── Registration flow (must complete before any commands) ───
+
+  if (ds.registration === "unregistered") {
+    ds.registration = "registering_name";
+    return `Hai! Selamat datang di NEMU Ojek 🏍️\n\nMau daftar jadi driver? Ketik nama lengkap kamu:`;
+  }
+
+  if (ds.registration === "registering_name") {
+    ds.name = text;
+    ds.registration = "registering_area";
+    return `Oke ${ds.name}! Sekarang ketik area/kota kamu (contoh: Jakarta Selatan):`;
+  }
+
+  if (ds.registration === "registering_area") {
+    ds.area = text;
+    ds.registration = "registered";
+    return `✅ Pendaftaran selesai!\n\nNama: ${ds.name}\nArea: ${ds.area}\n\nKetik SIAP untuk mulai terima order\nKetik HELP untuk bantuan`;
+  }
+
+  // ─── Below here: only registered drivers ───
 
   // Match intent
   const intent = matchIntent(text);
@@ -214,21 +240,8 @@ async function handleDriverMessage(
     return `Mau ambil order ini? Balas TERIMA atau TOLAK`;
   }
 
-  // ─── TIDAK_DIKENAL — AI fallback or default ───
+  // ─── TIDAK_DIKENAL — simple help hint (AI fallback disabled) ───
   if (intent === "TIDAK_DIKENAL") {
-    // Try AI fallback
-    try {
-      const aiState: DriverWhatsappState = {
-        phone: msg.driverPhone,
-        state: ds.state,
-        lastMessageAt: ds.lastMessageAt,
-        currentRideCode: ds.currentRide?.rideCode,
-      };
-      const aiResponse = await getAIFallback(text, aiState);
-      return aiResponse.reply;
-    } catch (e) {
-      console.error("[Bot] AI fallback error:", e);
-    }
     return `Hmm, aku gak ngerti nih 🤔\nKetik HELP buat liat daftar perintah.`;
   }
 
@@ -283,40 +296,13 @@ manager.on("qr", async (sessionId: string, qr: string) => {
   }
 });
 
-// Track welcome messages sent per session (prevent spam on reconnect)
-const welcomeSent = new Map<string, number>();
-
 manager.on("connected", async (sessionId: string, phone: string) => {
   broadcast("connected", { sessionId, phone });
 
-  // Initialize driver state
+  // Initialize driver state (no welcome message — wait for driver to initiate)
   const ds = getDriverState(sessionId);
   ds.phone = phone;
-
-  // Send welcome message ONLY ONCE per session (or after 1 hour cooldown)
-  const lastWelcome = welcomeSent.get(sessionId) || 0;
-  const cooldownMs = 60 * 60 * 1000; // 1 hour
-  if (Date.now() - lastWelcome < cooldownMs) {
-    console.log(`[Bot] Welcome already sent to ${sessionId}, skipping (cooldown)`);
-    return;
-  }
-  welcomeSent.set(sessionId, Date.now());
-
-  console.log(`[Bot] Sending welcome message to session ${sessionId} (${phone})`);
-  setTimeout(async () => {
-    try {
-      const sentResult = await manager.sendToDriver(
-        sessionId,
-        `🏍️ Selamat datang di NEMU Ojek!\n\nKetik SIAP untuk mulai terima order\nKetik HELP untuk bantuan\n\nAyo narik! 💪`,
-      );
-      if (sentResult?.key?.id) {
-        botSentMessages.add(sentResult.key.id);
-        setTimeout(() => botSentMessages.delete(sentResult.key.id!), 30000);
-      }
-    } catch (e) {
-      console.error(`[Bot] Failed to send welcome to ${sessionId}:`, e);
-    }
-  }, 2000); // Small delay to ensure connection is stable
+  console.log(`[Bot] Session ${sessionId} connected (${phone}) — waiting for driver to initiate`);
 });
 
 manager.on("disconnected", (sessionId: string, reason: string) => {
