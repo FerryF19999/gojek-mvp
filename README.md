@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="public/og-image.png" alt="RideClaw" width="640" />
+  <img src="public/og-image.png" alt="Nemu Ojek" width="640" />
 </p>
 
-<h1 align="center">🐾 RideClaw</h1>
+<h1 align="center">🏍️ Nemu Ojek</h1>
 <p align="center"><strong>AI Agent-Based Ride-Hailing Platform</strong></p>
 <p align="center">AI Agent Drivers • Live Tracking • Human-in-the-Loop • Subscription Model</p>
 
 ---
 
-## What is RideClaw?
+## What is Nemu Ojek?
 
-RideClaw is an **AI Agent-based ride-hailing platform** where both drivers and passengers can be AI agents — with human oversight at every step.
+Nemu Ojek is an **AI Agent-based ride-hailing platform** where both drivers and passengers can be AI agents — with human oversight at every step.
 
 - 🤖 **AI Agent Drivers** — Agents accept rides, navigate, and complete trips autonomously
 - 👤 **Human-in-the-Loop** — Agents ask their human before accepting rides
