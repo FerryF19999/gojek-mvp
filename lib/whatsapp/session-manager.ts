@@ -317,7 +317,7 @@ export class SessionManager extends EventEmitter {
               : undefined,
             messageId: msg.key.id || undefined,
             timestamp: typeof msg.messageTimestamp === "number" ? msg.messageTimestamp : undefined,
-            isSelfChat,
+            isSelfChat: isSelfChat ?? false,
           };
 
           console.log(`[SessionManager] 📨 RAW msg: from=${fromPhone} driver=${driverPhone} fromMe=${fromMe} isSelfChat=${isSelfChat} text="${(text||'').substring(0,50)}" ts=${msgTimestamp}`);
