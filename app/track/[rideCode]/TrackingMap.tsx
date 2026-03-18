@@ -47,6 +47,8 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 }
 
 // ─── Types ─────────────────────────────────────────────────────────
+type Lang = "id" | "en";
+
 interface RideData {
   _id: string;
   code: string;
@@ -234,7 +236,7 @@ function Confetti() {
 }
 
 // ─── Main Component ────────────────────────────────────────────────
-export default function TrackingMap({ ride }: { ride: RideData }) {
+export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lang?: Lang }) {
   const [showConfetti, setShowConfetti] = useState(false);
   const completedRef = useRef(false);
 
@@ -315,21 +317,21 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
     switch (ride.status) {
       case "created":
       case "awaiting_payment":
-        return "Menunggu pembayaran...";
+        return lang === "id" ? "Menunggu pembayaran..." : "Waiting for payment...";
       case "dispatching":
       case "awaiting_driver_response":
-        return "🔍 Mencari driver terdekat...";
+        return lang === "id" ? "🔍 Mencari driver terdekat..." : "🔍 Finding nearest driver...";
       case "assigned":
       case "driver_arriving":
-        return `🏍️ Driver ${ride.driver?.name ?? ""} menuju lokasi`;
+        return lang === "id" ? `🏍️ Driver ${ride.driver?.name ?? ""} menuju lokasi` : `🏍️ Driver ${ride.driver?.name ?? ""} is heading to pickup`;
       case "picked_up":
-        return `🚀 Dalam perjalanan ke ${ride.dropoff.address}`;
+        return lang === "id" ? `🚀 Dalam perjalanan ke ${ride.dropoff.address}` : `🚀 On the way to ${ride.dropoff.address}`;
       case "completed":
-        return "✅ Perjalanan selesai!";
+        return lang === "id" ? "✅ Perjalanan selesai!" : "✅ Ride completed!";
       case "cancelled":
-        return "❌ Perjalanan dibatalkan";
+        return lang === "id" ? "❌ Perjalanan dibatalkan" : "❌ Ride cancelled";
       case "expired":
-        return "⏰ Perjalanan expired";
+        return lang === "id" ? "⏰ Perjalanan expired" : "⏰ Ride expired";
       default:
         return ride.status;
     }

@@ -23,8 +23,10 @@ function formatCurrency(amount: number) {
 }
 
 type RideStatus = "created" | "awaiting_payment" | "dispatching" | "assigned" | "driver_arriving" | "picked_up" | "completed" | "cancelled" | "expired" | "awaiting_driver_response";
+type Lang = "id" | "en";
 
 export default function DriverViewPage() {
+  const [lang, setLang] = useState<Lang>("id");
   const params = useParams();
   const rideCode = params.rideCode as string;
 
@@ -42,11 +44,11 @@ export default function DriverViewPage() {
     try {
       await action();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Terjadi kesalahan");
+      setError(e instanceof Error ? e.message : lang === "id" ? "Terjadi kesalahan" : "An error occurred");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   const status = ride?.status as RideStatus | undefined;
 
@@ -106,6 +108,7 @@ export default function DriverViewPage() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-gray-900">
+      <button onClick={() => setLang(lang === "id" ? "en" : "id")} className="absolute right-3 top-3 z-[2000] rounded-full border border-white/10 bg-black/60 text-white px-3 py-1 text-xs">{lang === "id" ? "🇮🇩 ID" : "🇬🇧 EN"}</button>
       {/* Map */}
       <DriverMap
         pickup={ride.pickup}
