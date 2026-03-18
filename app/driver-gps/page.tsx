@@ -3,6 +3,10 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
+const SEND_INTERVAL_MS = 2000; // max 2s cadence for near real-time
+const FALLBACK_POLL_MS = 3000; // backup if watchPosition stalls
+const MIN_MOVE_METERS = 3; // allow tiny movement threshold to avoid noisy spam
+
 export default function DriverGpsWrapper() {
   return (
     <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f172a", color: "#94a3b8" }}>⏳ Memuat GPS...</div>}>
@@ -20,34 +24,79 @@ function DriverGpsPage() {
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const watchIdRef = useRef<number | null>(null);
+  const fallbackIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSentAtRef = useRef(0);
+  const lastSentCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   const sendLocation = useCallback(
     async (lat: number, lng: number) => {
-      if (!token) return;
+      if (!token) return false;
 
       try {
-        const baseUrl = window.location.origin;
-        const res = await fetch(`${baseUrl}/api/drivers/me/location`, {
+        const res = await fetch(`/api/drivers/me/location`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ lat, lng }),
+          keepalive: true,
         });
 
         if (res.ok) {
           setLastUpdate(new Date().toLocaleTimeString("id-ID"));
           setUpdateCount((c) => c + 1);
-        } else {
-          console.error("Location update failed:", res.status);
+          lastSentAtRef.current = Date.now();
+          lastSentCoordsRef.current = { lat, lng };
+          return true;
         }
+
+        console.error("Location update failed:", res.status);
+        return false;
       } catch (err) {
         console.error("Location send error:", err);
+        return false;
       }
     },
     [token],
+  );
+
+  const stopTracking = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (fallbackIntervalRef.current) {
+      clearInterval(fallbackIntervalRef.current);
+      fallbackIntervalRef.current = null;
+    }
+    setStatus("idle");
+  }, []);
+
+  const maybeSendPosition = useCallback(
+    (lat: number, lng: number, force = false) => {
+      const now = Date.now();
+      const last = lastSentCoordsRef.current;
+      const moved = last ? haversineMeters(last.lat, last.lng, lat, lng) : Infinity;
+      const elapsed = now - lastSentAtRef.current;
+
+      const shouldSend = force || elapsed >= SEND_INTERVAL_MS || moved >= MIN_MOVE_METERS;
+      if (!shouldSend) return;
+
+      void sendLocation(lat, lng);
+    },
+    [sendLocation],
+  );
+
+  const onGeoPosition = useCallback(
+    (pos: GeolocationPosition, force = false) => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      setCoords({ lat, lng });
+      maybeSendPosition(lat, lng, force);
+    },
+    [maybeSendPosition],
   );
 
   const startTracking = useCallback(() => {
@@ -57,42 +106,68 @@ function DriverGpsPage() {
       return;
     }
 
+    setErrorMsg("");
     setStatus("tracking");
 
-    // Get initial position
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (fallbackIntervalRef.current) {
+      clearInterval(fallbackIntervalRef.current);
+      fallbackIntervalRef.current = null;
+    }
+
+    // Immediate first point
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        setCoords({ lat, lng });
-        sendLocation(lat, lng);
-      },
+      (pos) => onGeoPosition(pos, true),
       (err) => {
         setErrorMsg(getGeoError(err));
         setStatus("error");
       },
-      { enableHighAccuracy: true, timeout: 15000 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
 
-    // Update every 10 seconds
-    intervalRef.current = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude: lat, longitude: lng } = pos.coords;
-          setCoords({ lat, lng });
-          sendLocation(lat, lng);
-        },
-        (err) => {
-          console.error("GPS error:", err);
-        },
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
-    }, 10000);
-  }, [sendLocation]);
+    // Primary realtime stream
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => onGeoPosition(pos, false),
+      (err) => {
+        console.error("watchPosition error:", err);
+        if (err.code === err.PERMISSION_DENIED) {
+          setErrorMsg(getGeoError(err));
+          setStatus("error");
+          stopTracking();
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 1000,
+      },
+    );
 
-  // Cleanup interval on unmount
+    // Fallback heartbeat polling every 3s (helps when watch callback stalls on some devices)
+    fallbackIntervalRef.current = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => onGeoPosition(pos, false),
+        (err) => {
+          if (err.code !== err.TIMEOUT) {
+            console.error("Fallback GPS error:", err);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      );
+    }, FALLBACK_POLL_MS);
+  }, [onGeoPosition, stopTracking]);
+
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      if (fallbackIntervalRef.current) {
+        clearInterval(fallbackIntervalRef.current);
+      }
     };
   }, []);
 
@@ -133,7 +208,7 @@ function DriverGpsPage() {
                 <div style={styles.pulse} />
                 <span style={styles.pulseText}>🟢 LIVE</span>
               </div>
-              <p style={styles.statusText}>Lokasi kamu dishare ke NEMU</p>
+              <p style={styles.statusText}>Lokasi kamu dikirim real-time (±2-3 detik)</p>
             </div>
 
             {coords && (
@@ -155,13 +230,7 @@ function DriverGpsPage() {
               Biar lokasi kamu terus ke-update.
             </p>
 
-            <button
-              onClick={() => {
-                if (intervalRef.current) clearInterval(intervalRef.current);
-                setStatus("idle");
-              }}
-              style={styles.stopButton}
-            >
+            <button onClick={stopTracking} style={styles.stopButton}>
               ⛔ Stop Share Lokasi
             </button>
           </>
@@ -193,6 +262,16 @@ function getGeoError(err: GeolocationPositionError): string {
     default:
       return "Ada error GPS nih.";
   }
+}
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
 const styles: Record<string, React.CSSProperties> = {

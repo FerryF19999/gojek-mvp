@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -235,62 +235,8 @@ function Confetti() {
 
 // ─── Main Component ────────────────────────────────────────────────
 export default function TrackingMap({ ride }: { ride: RideData }) {
-  // Simulated driver position (client-side only)
-  const [simPos, setSimPos] = useState<[number, number] | null>(null);
-  const simRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const completedRef = useRef(false);
-
-  // Sync simulated position with actual driver location (from server)
-  const lastServerLat = useRef<number | null>(null);
-  const lastServerLng = useRef<number | null>(null);
-  useEffect(() => {
-    if (ride.driver) {
-      const sLat = ride.driver.lastLocation.lat;
-      const sLng = ride.driver.lastLocation.lng;
-      // Update simPos whenever server location changes
-      if (sLat !== lastServerLat.current || sLng !== lastServerLng.current) {
-        lastServerLat.current = sLat;
-        lastServerLng.current = sLng;
-        setSimPos([sLat, sLng]);
-      }
-    }
-  }, [ride.driver?.lastLocation?.lat, ride.driver?.lastLocation?.lng]);
-
-  // Client-side movement simulation
-  useEffect(() => {
-    if (simRef.current) clearInterval(simRef.current);
-
-    const canSimulate =
-      ride.driver &&
-      (ride.status === "assigned" || ride.status === "driver_arriving" || ride.status === "picked_up");
-
-    if (!canSimulate) return;
-
-    const target =
-      ride.status === "picked_up"
-        ? { lat: ride.dropoff.lat, lng: ride.dropoff.lng }
-        : { lat: ride.pickup.lat, lng: ride.pickup.lng };
-
-    simRef.current = setInterval(() => {
-      setSimPos((prev) => {
-        if (!prev) return prev;
-        const [lat, lng] = prev;
-        const dLat = target.lat - lat;
-        const dLng = target.lng - lng;
-        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-        if (dist < 0.0005) return prev; // close enough
-        // Dynamic step: faster for longer distances, min 0.0008, max 0.02
-        const step = Math.max(0.0008, Math.min(0.02, dist * 0.05));
-        const ratio = step / dist;
-        return [lat + dLat * ratio, lng + dLng * ratio];
-      });
-    }, 2000);
-
-    return () => {
-      if (simRef.current) clearInterval(simRef.current);
-    };
-  }, [ride.status, ride.driver, ride.pickup, ride.dropoff]);
 
   // Confetti on completion (delayed so map can show final position)
   const [showCompleteOverlay, setShowCompleteOverlay] = useState(false);
@@ -307,10 +253,9 @@ export default function TrackingMap({ ride }: { ride: RideData }) {
   }, [ride.status]);
 
   const driverPos: [number, number] | null = useMemo(() => {
-    if (simPos) return simPos;
     if (ride.driver) return [ride.driver.lastLocation.lat, ride.driver.lastLocation.lng];
     return null;
-  }, [simPos, ride.driver]);
+  }, [ride.driver]);
 
   // Distance & ETA calculations
   const { distanceKm, etaMin } = useMemo(() => {
