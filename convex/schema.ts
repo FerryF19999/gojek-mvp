@@ -252,4 +252,12 @@ export default defineSchema({
     .index("by_driverId", ["driverId"])
     .index("by_phone", ["phone"])
     .index("by_status", ["status"]),
+
+  adminSessions: defineTable({
+    token: v.string(),
+    status: v.string(),
+    phoneNumber: v.optional(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_token", ["token"]),
 });

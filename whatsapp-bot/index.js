@@ -405,6 +405,35 @@ async function fetchJson(pathname) {
   return res.json();
 }
 
+async function handleAdminAuthToken(sock, jid, phone, msg) {
+  if (!msg.startsWith("AUTH:")) return false;
+
+  const token = msg.replace("AUTH:", "").trim();
+  if (!token) {
+    await sendReply(sock, jid, "❌ Token admin kosong.");
+    return true;
+  }
+
+  if (!ADMIN_NUMBER || phone !== ADMIN_NUMBER) {
+    await sendReply(sock, jid, "❌ Kamu tidak punya akses admin.");
+    return true;
+  }
+
+  const res = await fetch(`${API_BASE}/admin/auth/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, phoneNumber: phone }),
+  });
+
+  if (res.ok) {
+    await sendReply(sock, jid, "✅ Berhasil masuk sebagai admin! Silakan cek browser kamu.");
+    return true;
+  }
+
+  await sendReply(sock, jid, "❌ Token tidak valid atau sudah expired.");
+  return true;
+}
+
 async function handleAdminCommand(sock, jid, msg) {
   const command = String(msg || "").trim().toLowerCase();
 
@@ -775,6 +804,10 @@ async function handleMessage(sock, jid, text) {
   if (!msg) return;
 
   logLine("IN", phone, msg);
+
+  if (await handleAdminAuthToken(sock, jid, phone, msg)) {
+    return;
+  }
 
   if (ADMIN_NUMBER && phone === ADMIN_NUMBER) {
     await handleAdminCommand(sock, jid, msg);
