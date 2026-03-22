@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { handleMessage, IncomingMessage } from "@/lib/whatsapp/bridge";
+import { handlePassengerMessage } from "@/lib/whatsapp/passenger-bot";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
@@ -99,7 +100,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Process message through bridge (same logic for both modes)
+    // Passenger booking bot flow (scan QR -> chat order)
+    const passengerFlow = await handlePassengerMessage({ phone: message.phone, text: message.text });
+    if (passengerFlow.handled) {
+      const replies = passengerFlow.replies.map((text) => ({ phone: normalizePhone(message.phone), text }));
+      console.log(`[WA Webhook] ${source} Passenger flow replies: ${replies.length}`);
+      return NextResponse.json({ ok: true, replies });
+    }
+
+    // Fallback to existing driver bridge flow
     const replies = await handleMessage(message);
 
     console.log(`[WA Webhook] ${source} Replies: ${replies.length}`);

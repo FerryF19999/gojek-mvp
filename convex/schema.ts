@@ -202,6 +202,28 @@ export default defineSchema({
     .index("by_driverId", ["driverId"]),
 
   // Per-driver WhatsApp bot sessions (1 bot per driver model)
+  ridePushSubscriptions: defineTable({
+    rideCode: v.string(),
+    endpoint: v.string(),
+    subscription: v.any(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_rideCode", ["rideCode"])
+    .index("by_rideCode_endpoint", ["rideCode", "endpoint"]),
+
+  passengerWhatsappState: defineTable({
+    phone: v.string(),
+    state: v.string(),
+    currentRideCode: v.optional(v.string()),
+    tempData: v.optional(v.any()),
+    lastMessageAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_phone", ["phone"])
+    .index("by_rideCode", ["currentRideCode"]),
+
   driverWhatsappSessions: defineTable({
     sessionId: v.string(),
     driverId: v.optional(v.string()),

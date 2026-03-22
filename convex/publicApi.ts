@@ -146,6 +146,11 @@ export const driverCompleteRide = mutation({
       ],
     });
 
+    await ctx.scheduler.runAfter(0, (internal as any).pushNotifications.sendRideStatusPush, {
+      rideCode: ride.code,
+      status: "completed",
+    });
+
     // Set driver back to online
     await ctx.db.patch(args.driverId, {
       availability: "online",

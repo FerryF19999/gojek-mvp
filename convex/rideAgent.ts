@@ -98,6 +98,13 @@ async function updateRideStatus(ctx: any, ride: any, status: any, note: string) 
     updatedAt: now,
     timeline: [...ride.timeline, { type: status, at: now, by: "ride-agent", note }],
   });
+
+  if (["assigned", "driver_arriving", "picked_up", "completed"].includes(status)) {
+    await ctx.scheduler.runAfter(0, (internal as any).pushNotifications.sendRideStatusPush, {
+      rideCode: ride.code,
+      status,
+    });
+  }
 }
 
 export const startRideAgent = mutation({

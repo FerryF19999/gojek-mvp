@@ -6,6 +6,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { launchCities } from "@/lib/launchCities";
+import WhatsAppBookingQR from "@/components/WhatsAppBookingQR";
 
 /* ─── i18n ─── */
 type Lang = "id" | "en";
@@ -296,6 +297,10 @@ export default function LandingPage() {
                 </Button>
               </Link>
             </div>
+          </FadeIn>
+
+          <FadeIn delay={350} className="max-w-md mx-auto">
+            <WhatsAppBookingQR />
           </FadeIn>
 
           {/* Hero motorcycle art */}

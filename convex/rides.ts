@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { isDriverSubscribed } from "./subscription";
@@ -133,6 +134,11 @@ export const assignDriver = mutation({
       status: "assigned",
       updatedAt: now,
       timeline: [...ride.timeline, { type: "assigned", at: now, by: args.assignedBy }],
+    });
+
+    await ctx.scheduler.runAfter(0, (internal as any).pushNotifications.sendRideStatusPush, {
+      rideCode: ride.code,
+      status: "assigned",
     });
 
     await ctx.db.insert("agent_actions", {

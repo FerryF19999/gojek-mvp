@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { launchCities, type LaunchCity } from "@/lib/launchCities";
+import WhatsAppBookingQR from "@/components/WhatsAppBookingQR";
 
 const CityPreviewMap = dynamic(() => import("@/components/ride/CityPreviewMap"), { ssr: false });
 
@@ -80,6 +81,10 @@ export default function OrderRidePage() {
           <div className="inline-flex items-center gap-2 rounded-full bg-green-500/10 border border-green-500/20 px-4 py-1.5 text-sm text-green-400 mb-6">{s.badge}</div>
           <h1 className="text-4xl font-bold mb-4">{s.title}</h1>
           <p className="text-white/50 text-lg">{s.sub}</p>
+        </div>
+
+        <div className="mb-8">
+          <WhatsAppBookingQR />
         </div>
 
         <div className="rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/[0.08] to-transparent p-6 mb-10">

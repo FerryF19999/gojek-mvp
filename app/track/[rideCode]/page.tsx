@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 const TrackingMap = dynamic(() => import("./TrackingMap"), { ssr: false });
+const PushSubscriber = dynamic(() => import("./PushSubscriber"), { ssr: false });
 
 type Lang = "id" | "en";
 
@@ -44,6 +45,7 @@ export default function TrackRidePage() {
   return (
     <div className="relative">
       <button onClick={() => setLang(lang === "id" ? "en" : "id")} className="absolute right-3 top-3 z-[2000] rounded-full border border-white/10 bg-black/50 text-white px-3 py-1 text-xs">{lang === "id" ? "🇮🇩 ID" : "🇬🇧 EN"}</button>
+      <PushSubscriber rideCode={rideCode} />
       <TrackingMap ride={ride} lang={lang} />
     </div>
   );
