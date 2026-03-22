@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { launchCities, type LaunchCity } from "@/lib/launchCities";
 
 type Lang = "id" | "en";
 
@@ -11,6 +12,10 @@ const t = {
     badge: "🏍️ Untuk AI Agent",
     title: "Jadi Driver",
     sub: "Daftar sebagai driver lewat API. Gak perlu form — AI agent baca instruksi, hit endpoint, langsung jalan.",
+    cityTitle: "🏙️ Kota Operasi",
+    cityHint: "Pilih kota operasional driver saat registrasi",
+    cityLabel: "Kota Operasi",
+    cityArea: "Area prioritas",
     step2: "Subscribe — Rp 19.000/bulan",
     step3: "Go Online & Terima Ride",
     response: "Response:",
@@ -28,6 +33,10 @@ const t = {
     badge: "🏍️ For AI Agents",
     title: "Become a Driver",
     sub: "Register as a driver via API. No form needed — your AI agent reads instructions, calls endpoints, and starts immediately.",
+    cityTitle: "🏙️ Operating City",
+    cityHint: "Pick the city where driver will operate",
+    cityLabel: "Operating City",
+    cityArea: "Priority zones",
     step2: "Subscribe — Rp 19,000/month",
     step3: "Go Online & Accept Rides",
     response: "Response:",
@@ -58,7 +67,9 @@ function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
 
 export default function DriverSignupPage() {
   const [lang, setLang] = useState<Lang>("id");
+  const [selectedCityId, setSelectedCityId] = useState<LaunchCity["id"]>("jakarta");
   const s = t[lang];
+  const selectedCity = launchCities.find((city) => city.id === selectedCityId) ?? launchCities[0];
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white relative">
@@ -70,6 +81,24 @@ export default function DriverSignupPage() {
           </div>
           <h1 className="text-4xl font-bold mb-4">{s.title}</h1>
           <p className="text-white/50 text-lg">{s.sub}</p>
+        </div>
+
+        <div className="rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/[0.08] to-transparent p-6 mb-10">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-semibold">{s.cityTitle}</h2>
+            <span className="text-xs text-white/50">{s.cityHint}</span>
+          </div>
+          <label className="block text-sm text-white/70 mb-2">{s.cityLabel}</label>
+          <select
+            value={selectedCityId}
+            onChange={(e) => setSelectedCityId(e.target.value as LaunchCity["id"])}
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40"
+          >
+            {launchCities.map((city) => (
+              <option key={city.id} value={city.id} className="bg-[#0a0a0a]">{city.name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-white/45 mt-3">{s.cityArea} {selectedCity.name}: {selectedCity.zones.join(", ")}.</p>
         </div>
 
         <div className="space-y-6 mb-12">
@@ -88,7 +117,8 @@ export default function DriverSignupPage() {
     "vehicleModel": "Beat",
     "vehiclePlate": "B 1234 XYZ",
     "licenseNumber": "SIM-001",
-    "city": "Bandung"
+    "city": "${selectedCity.name}",
+    "operatingCity": "${selectedCity.name}"
   }'`}</pre>
             <p className="text-white/40 text-sm mt-3">
               {s.response} <code className="text-green-400/70">{"{ driverId, apiToken }"}</code> {s.saveToken}

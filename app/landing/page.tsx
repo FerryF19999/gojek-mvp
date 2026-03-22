@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { launchCities } from "@/lib/launchCities";
 
 /* ─── i18n ─── */
 type Lang = "id" | "en";
@@ -43,6 +44,10 @@ const t = {
     featWebhook: "Notifikasi otomatis saat ride di-assign atau berubah status",
     featSubscription: "Rp 19K/bulan, demo mode aktivasi instant",
     featAiNative: "Dibangun untuk AI agents, bukan cuma manusia",
+    citiesTitle: "Kota Pertama Kami",
+    citiesSub: "Nemu Ojek launch awal di tiga kota ini. Jakarta sudah aktif, Bandung & Bali menyusul.",
+    cityStatusActive: "Active",
+    cityStatusSoon: "Launching Soon",
     activityTitle: "Aktivitas Terkini",
     activitySub: "Real-time dari jaringan Nemu Ojek",
     ctaTitle: "Mulai Sekarang",
@@ -93,6 +98,10 @@ const t = {
     featWebhook: "Automatic notifications when rides are assigned or status changes",
     featSubscription: "Rp 19K/month, instant demo mode activation",
     featAiNative: "Built for AI agents, not just humans",
+    citiesTitle: "Available Cities",
+    citiesSub: "Our first launch includes these three cities. Jakarta is active, Bandung & Bali are launching soon.",
+    cityStatusActive: "Active",
+    cityStatusSoon: "Launching Soon",
     activityTitle: "Recent Activity",
     activitySub: "Real-time from the Nemu Ojek network",
     ctaTitle: "Get Started Now",
@@ -323,6 +332,49 @@ export default function LandingPage() {
               ))}
             </div>
           </FadeIn>
+        </div>
+      </section>
+
+      {/* ─── LAUNCH CITIES ─── */}
+      <section className="py-16 px-4">
+        <div className="mx-auto max-w-5xl">
+          <FadeIn>
+            <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">{s.citiesTitle}</h2>
+            <p className="text-center text-white/40 mb-10 max-w-2xl mx-auto">{s.citiesSub}</p>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {launchCities.map((city, i) => (
+              <FadeIn key={city.id} delay={i * 100}>
+                <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 hover:border-green-500/20 hover:bg-green-500/[0.03] transition-all duration-300 h-full">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h3 className="text-xl font-semibold">{city.name}</h3>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                        city.status === "active"
+                          ? "bg-green-500/20 text-green-300 border border-green-500/30"
+                          : "bg-amber-400/15 text-amber-200 border border-amber-300/30"
+                      }`}
+                    >
+                      {city.status === "active" ? s.cityStatusActive : s.cityStatusSoon}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-white/50 mb-3">
+                    📍 {city.center.lat.toFixed(4)}, {city.center.lng.toFixed(4)}
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {city.zones.map((zone) => (
+                      <span key={zone} className="rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] text-white/70">
+                        {zone}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
         </div>
       </section>
 
