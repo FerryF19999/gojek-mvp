@@ -118,6 +118,81 @@ npx convex dev    # Terminal 1 — backend
 npm run dev       # Terminal 2 — frontend
 ```
 
+## WhatsApp Bot (Baileys) — 24/7 VPS Setup
+
+Bot entrypoint: `whatsapp-bot/index.js`
+
+### 1) Install dependencies
+
+```bash
+cd /root/.openclaw/workspace/friday/gojek-mvp
+npm install
+npm install -g pm2
+```
+
+### 2) PM2 ecosystem config
+
+File: `whatsapp-bot/ecosystem.config.js`
+
+```js
+module.exports = {
+  apps: [{
+    name: 'nemu-wa-bot',
+    script: './whatsapp-bot/index.js',
+    cwd: '/root/.openclaw/workspace/friday/gojek-mvp',
+    restart_delay: 5000,
+    max_restarts: 10,
+    env: {
+      NEMU_API_BASE: 'https://gojek-mvp.vercel.app/api'
+    }
+  }]
+}
+```
+
+### 3) Start + persist on reboot
+
+```bash
+cd /root/.openclaw/workspace/friday/gojek-mvp
+pm2 start whatsapp-bot/ecosystem.config.js
+pm2 save
+pm2 startup
+```
+
+### 4) Pair WhatsApp (scan QR once)
+
+```bash
+pm2 logs nemu-wa-bot --lines 50 --nostream
+```
+
+If QR appears in logs, open WhatsApp on the bot phone:
+- **WhatsApp → Settings → Linked Devices → Link a Device**
+- Scan the ASCII QR shown in terminal logs
+
+After successful scan, PM2 logs will show bot connected/ready.
+
+### 5) Helper script to show QR-related logs
+
+```bash
+./whatsapp-bot/show-qr.sh
+```
+
+Script content:
+
+```bash
+#!/bin/bash
+pm2 logs nemu-wa-bot --lines 100 --nostream | grep -A 20 "QR"
+```
+
+### 6) Useful PM2 commands
+
+```bash
+pm2 status
+pm2 logs nemu-wa-bot
+pm2 restart nemu-wa-bot
+pm2 stop nemu-wa-bot
+pm2 delete nemu-wa-bot
+```
+
 ## Environment Variables
 
 ```bash
