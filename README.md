@@ -122,6 +122,41 @@ npm run dev       # Terminal 2 — frontend
 
 Bot entrypoint: `whatsapp-bot/index.js`
 
+### WhatsApp Bot Behavior (Session + Anti-Spam)
+
+- Session per nomor disimpan di `whatsapp-bot/sessions/<nomor>.json`
+- Pertama kali chat, bot minta role: `driver` atau `penumpang`
+- Timeout session 30 menit tidak aktif → reset ke `IDLE`
+- Semua pesan masuk/keluar dicatat ke `whatsapp-bot/logs/YYYY-MM-DD.log`
+- Rate limit reply:
+  - Delay minimum 1.5 detik sebelum reply
+  - Minimal jeda 2 detik per nomor untuk pesan keluar
+  - Queue per nomor agar burst diproses satu per satu
+- Anti-spam:
+  - >10 pesan/menit dari nomor yang sama → bot balas `Slow down ya 😅`
+  - Nomor tersebut di-ignore selama 60 detik
+
+### Driver Check-in / Check-out via WhatsApp
+
+Setelah registrasi driver selesai:
+
+- `checkin` / `masuk` → status driver ke `online` + bot balas:
+  - `✅ Kamu sekarang online! Siap terima orderan.`
+- `checkout` / `keluar` → status driver ke `offline` + bot balas:
+  - `👋 Kamu offline. Sampai besok!`
+
+State driver utama:
+
+`ASK_NAME -> ASK_PLATE -> ASK_CITY -> CONFIRM_REG -> CHECKED_OUT <-> CHECKED_IN -> WAITING_RIDE -> ON_RIDE`
+
+Saat `CHECKED_IN`, bot polling assignment setiap 30 detik ke API driver (`/api/drivers/me/rides`).
+Jika ada order baru, bot kirim:
+
+`🏍️ Ada orderan baru! ... Terima? (ya/tidak)`
+
+- `ya` → bot call endpoint accept
+- `tidak` → bot call endpoint decline
+
 ### 1) Install dependencies
 
 ```bash
