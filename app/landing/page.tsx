@@ -316,6 +316,37 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── DRIVER/PASSENGER CTA ─── */}
+      <section className="py-14 px-4">
+        <div className="mx-auto max-w-5xl">
+          <FadeIn>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
+                <div className="text-4xl mb-4">🛵</div>
+                <h3 className="text-2xl font-bold mb-2">Mau Pesan Ojek?</h3>
+                <p className="text-zinc-600 mb-6">Pesan ojek lewat WhatsApp, mudah dan cepat.</p>
+                <Link href="/qr/penumpang">
+                  <Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold">
+                    Pesan Sekarang
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
+                <div className="text-4xl mb-4">🏍️</div>
+                <h3 className="text-2xl font-bold mb-2">Mau Jadi Driver?</h3>
+                <p className="text-zinc-600 mb-6">Daftar jadi mitra driver, tentukan jadwalmu sendiri.</p>
+                <Link href="/qr/driver">
+                  <Button className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl h-11 px-6 font-semibold">
+                    Daftar Driver
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       {/* ─── LIVE STATS ─── */}
       <section className="relative py-16 px-4">
         <div className="mx-auto max-w-4xl">
