@@ -9,8 +9,12 @@ export async function POST(
   try {
     const { rideCode } = await params;
     const convex = getConvexClient();
+    const body = await req.json().catch(() => ({}));
 
-    const result = await convex.mutation(api.publicApi.payRideByCode, { code: rideCode });
+    const result = await convex.mutation(api.publicApi.payRideByCode, {
+      code: rideCode,
+      method: body?.method,
+    });
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gojek-mvp.vercel.app";
     return NextResponse.json({
@@ -18,6 +22,7 @@ export async function POST(
       alreadyPaid: result.alreadyPaid,
       status: result.status,
       paymentStatus: result.paymentStatus,
+      paymentMethod: result.paymentMethod,
       trackingUrl: `${baseUrl}/track/${rideCode}`,
       statusUrl: `${baseUrl}/api/rides/${rideCode}/status`,
     });

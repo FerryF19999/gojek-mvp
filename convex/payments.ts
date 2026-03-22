@@ -80,6 +80,12 @@ export const upsertPaymentInternal = internalMutation({
 export const markPaidDemo = mutation({
   args: { rideId: v.id("rides") },
   handler: async (ctx, args) => {
+    const ride = await ctx.db.get(args.rideId);
+    if (!ride) throw new Error("Ride not found");
+    if (ride.status !== "completed") {
+      throw new Error("Payment can only be marked paid after ride is completed");
+    }
+
     const payment = await ctx.db
       .query("payments")
       .withIndex("by_rideId", (q) => q.eq("rideId", args.rideId))

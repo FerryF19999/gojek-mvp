@@ -173,6 +173,7 @@ export const createPublicRide = mutation({
       lng: v.number(),
     }),
     vehicleType: v.union(v.literal("motor"), v.literal("car")),
+    paymentMethod: v.optional(v.union(v.literal("cash"), v.literal("ovo"), v.literal("gopay"), v.literal("dana"))),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -197,11 +198,28 @@ export const createPublicRide = mutation({
         { type: "created", at: now, by: "passenger-api", note: "Ride created via public API" },
       ],
       paymentStatus: "unpaid",
+      paymentMethod: args.paymentMethod ?? "cash",
       createdAt: now,
       updatedAt: now,
     });
 
-    return { rideId, code, status: "created" as const, price: amount };
+    const runId = `${String(rideId)}-${now}`;
+    const firstJobId = await ctx.scheduler.runAfter(500, internal.rideAgent.runRideAgentStep, {
+      rideId,
+      runId,
+      step: "dispatching",
+    });
+
+    await ctx.db.patch(rideId, {
+      agentRunId: runId,
+      agentStatus: "running",
+      agentSpeed: "normal",
+      agentJobIds: [String(firstJobId)],
+      lastStepAt: now,
+      updatedAt: now,
+    });
+
+    return { rideId, code, status: "created" as const, price: amount, paymentMethod: args.paymentMethod ?? "cash" };
   },
 });
 
@@ -244,6 +262,7 @@ export const getPublicRideStatus = query({
       vehicleType: ride.vehicleType,
       price: ride.price,
       paymentStatus: ride.paymentStatus,
+      paymentMethod: ride.paymentMethod,
       assignedDriverId: ride.assignedDriverId ?? null,
       driver,
       timeline: ride.timeline,
@@ -256,7 +275,10 @@ export const getPublicRideStatus = query({
 // ─── Public ride payment (demo) ───
 
 export const payRideByCode = mutation({
-  args: { code: v.string() },
+  args: {
+    code: v.string(),
+    method: v.optional(v.union(v.literal("cash"), v.literal("ovo"), v.literal("gopay"), v.literal("dana"))),
+  },
   handler: async (ctx, args) => {
     const ride = await ctx.db
       .query("rides")
@@ -265,24 +287,23 @@ export const payRideByCode = mutation({
     if (!ride) throw new Error("Ride not found");
 
     if (ride.paymentStatus === "paid") {
-      return { ok: true, alreadyPaid: true, status: ride.status, paymentStatus: "paid" };
+      return { ok: true, alreadyPaid: true, status: ride.status, paymentStatus: "paid", paymentMethod: ride.paymentMethod };
+    }
+
+    if (ride.status !== "completed") {
+      throw new Error("Payment can only be completed after ride status = completed");
     }
 
     const now = Date.now();
-
-    // Determine new ride status
-    const newStatus = (ride.status === "created" || ride.status === "awaiting_payment") ? "dispatching" : ride.status;
+    const paymentMethod = args.method ?? ride.paymentMethod ?? "cash";
 
     await ctx.db.patch(ride._id, {
       paymentStatus: "paid",
-      status: newStatus,
+      paymentMethod,
       updatedAt: now,
       timeline: [
         ...ride.timeline,
-        { type: "payment_received", at: now, by: "passenger-api", note: "Payment confirmed (demo)" },
-        ...(newStatus !== ride.status
-          ? [{ type: newStatus, at: now, by: "passenger-api", note: "Auto-transitioned after payment" }]
-          : []),
+        { type: "payment_received", at: now, by: "passenger-api", note: `Payment completed via ${paymentMethod.toUpperCase()} (post-ride)` },
       ],
     });
 
@@ -304,26 +325,7 @@ export const payRideByCode = mutation({
       });
     }
 
-    // Auto-start ride agent if not already running
-    if (ride.agentStatus !== "running") {
-      const runId = `${String(ride._id)}-${now}`;
-      const speed = ride.agentSpeed ?? "normal";
-      const firstJobId = await ctx.scheduler.runAfter(500, internal.rideAgent.runRideAgentStep, {
-        rideId: ride._id,
-        runId,
-        step: "dispatching",
-      });
-
-      await ctx.db.patch(ride._id, {
-        agentRunId: runId,
-        agentStatus: "running",
-        agentSpeed: speed,
-        agentJobIds: [String(firstJobId)],
-        lastStepAt: now,
-      });
-    }
-
-    return { ok: true, alreadyPaid: false, status: newStatus, paymentStatus: "paid" };
+    return { ok: true, alreadyPaid: false, status: ride.status, paymentStatus: "paid", paymentMethod };
   },
 });
 

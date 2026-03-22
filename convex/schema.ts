@@ -117,6 +117,12 @@ export default defineSchema({
       v.literal("failed"),
       v.literal("refunded"),
     ),
+    paymentMethod: v.union(
+      v.literal("cash"),
+      v.literal("ovo"),
+      v.literal("gopay"),
+      v.literal("dana"),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

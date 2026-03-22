@@ -61,17 +61,17 @@ export const createRide = mutation({
       dropoff: args.dropoff,
       vehicleType: args.vehicleType,
       price: { amount, currency: "IDR" },
-      status: "awaiting_payment",
+      status: "created",
       timeline: [
-        { type: "created", at: now, by: args.createdBy },
         {
-          type: "awaiting_payment",
+          type: "created",
           at: now,
           by: args.createdBy,
-          note: "Prepaid required before dispatch. Generate QRIS and mark payment paid to continue.",
+          note: "Ride created. Payment will be collected after trip is completed.",
         },
       ],
       paymentStatus: "unpaid",
+      paymentMethod: "cash",
       createdAt: now,
       updatedAt: now,
     });
@@ -310,6 +310,7 @@ export const getRideByCode = query({
       dropoff: ride.dropoff,
       vehicleType: ride.vehicleType,
       price: ride.price,
+      paymentMethod: ride.paymentMethod,
       driver,
     };
   },

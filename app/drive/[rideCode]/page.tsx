@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
+import QRCode from "qrcode";
 
 const DriverMap = dynamic(() => import("./DriverMap"), { ssr: false });
 
@@ -37,6 +38,7 @@ export default function DriverViewPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickupQrDataUrl, setPickupQrDataUrl] = useState<string | null>(null);
 
   const handleAction = useCallback(async (action: () => Promise<unknown>) => {
     setLoading(true);
@@ -68,6 +70,28 @@ export default function DriverViewPage() {
       return { label: "Menuju tujuan", distance: dist };
     }
     return null;
+  }, [ride, status]);
+
+  useEffect(() => {
+    if (!ride) return;
+    const shouldShowQr = status === "assigned" || status === "awaiting_driver_response" || status === "driver_arriving";
+    if (!shouldShowQr) {
+      setPickupQrDataUrl(null);
+      return;
+    }
+
+    const payload = JSON.stringify({
+      t: "pickup_verify",
+      rideCode: ride.code,
+      customer: ride.customerName,
+      pickup: ride.pickup.address,
+      driver: ride.driver?.driverName ?? null,
+      status,
+    });
+
+    QRCode.toDataURL(payload, { width: 220, margin: 1 })
+      .then(setPickupQrDataUrl)
+      .catch(() => setPickupQrDataUrl(null));
   }, [ride, status]);
 
   if (ride === undefined) {
@@ -159,6 +183,14 @@ export default function DriverViewPage() {
               <span className="text-gray-400">Tarif</span>
               <span className="font-bold text-green-400">Rp {formatCurrency(ride.price.amount)}</span>
             </div>
+            {pickupQrDataUrl && (
+              <div className="pt-2 border-t border-white/10 mt-2">
+                <p className="text-xs text-gray-400 mb-2">Tunjukkan QR ini ke penumpang untuk verifikasi pickup</p>
+                <div className="bg-white inline-block p-2 rounded-lg">
+                  <img src={pickupQrDataUrl} alt="QR verifikasi pickup" className="w-24 h-24" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

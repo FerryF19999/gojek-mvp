@@ -3,13 +3,14 @@ import { api } from "@/convex/_generated/api";
 import { getConvexClient } from "@/lib/driver-api";
 
 const VEHICLE_TYPES = ["motor", "car"] as const;
+const PAYMENT_METHODS = ["cash", "ovo", "gopay", "dana"] as const;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
     // Validate required fields
-    const { customerName, customerPhone, pickup, dropoff, vehicleType } = body;
+    const { customerName, customerPhone, pickup, dropoff, vehicleType, paymentMethod } = body;
 
     if (!customerName || typeof customerName !== "string") {
       return NextResponse.json({ error: "customerName is required" }, { status: 400 });
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
     if (!vehicleType || !VEHICLE_TYPES.includes(vehicleType)) {
       return NextResponse.json({ error: `vehicleType must be one of: ${VEHICLE_TYPES.join(", ")}` }, { status: 400 });
     }
+    if (paymentMethod && !PAYMENT_METHODS.includes(paymentMethod)) {
+      return NextResponse.json({ error: `paymentMethod must be one of: ${PAYMENT_METHODS.join(", ")}` }, { status: 400 });
+    }
 
     const convex = getConvexClient();
     const result = await convex.mutation(api.publicApi.createPublicRide, {
@@ -34,6 +38,7 @@ export async function POST(req: NextRequest) {
       pickup: { address: pickup.address, lat: pickup.lat, lng: pickup.lng },
       dropoff: { address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng },
       vehicleType,
+      paymentMethod,
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gojek-mvp.vercel.app";
@@ -46,6 +51,7 @@ export async function POST(req: NextRequest) {
         price: result.price,
         trackingUrl: `${baseUrl}/track/${result.code}`,
         payUrl: `${baseUrl}/api/rides/${result.code}/pay`,
+        paymentMethod: result.paymentMethod ?? paymentMethod ?? "cash",
         statusUrl: `${baseUrl}/api/rides/${result.code}/status`,
       },
     });

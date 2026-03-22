@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
+import QRCode from "qrcode";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -58,6 +59,7 @@ interface RideData {
   dropoff: { address: string; lat: number; lng: number; note?: string };
   vehicleType: string;
   price: { amount: number; currency: string };
+  paymentMethod?: "cash" | "ovo" | "gopay" | "dana";
   driver: {
     name: string;
     vehicleType: string;
@@ -112,6 +114,18 @@ function FitBounds({ ride }: { ride: RideData }) {
     map.fitBounds(L.latLngBounds(points), { padding: [60, 60] });
     fittedRef.current = true;
   }, [map, ride]);
+
+  return null;
+}
+
+function AutoFollowDriver({ driverPos, status }: { driverPos: [number, number] | null; status: string }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!driverPos) return;
+    if (["completed", "cancelled", "expired"].includes(status)) return;
+    map.panTo(driverPos, { animate: true, duration: 1.2 });
+  }, [map, driverPos, status]);
 
   return null;
 }
@@ -238,6 +252,7 @@ function Confetti() {
 // ─── Main Component ────────────────────────────────────────────────
 export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lang?: Lang }) {
   const [showConfetti, setShowConfetti] = useState(false);
+  const [pickupQrDataUrl, setPickupQrDataUrl] = useState<string | null>(null);
   const completedRef = useRef(false);
 
   // Confetti on completion (delayed so map can show final position)
@@ -253,6 +268,30 @@ export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lan
       }, 3000);
     }
   }, [ride.status]);
+
+  useEffect(() => {
+    const shouldShowQr = ride.status === "assigned" || ride.status === "driver_arriving" || ride.status === "awaiting_driver_response";
+    if (!shouldShowQr) {
+      setPickupQrDataUrl(null);
+      return;
+    }
+
+    const qrPayload = JSON.stringify({
+      t: "pickup_verify",
+      rideCode: ride.code,
+      customer: ride.customerName,
+      status: ride.status,
+      driver: ride.driver?.name ?? null,
+    });
+
+    QRCode.toDataURL(qrPayload, {
+      width: 220,
+      margin: 1,
+      color: { dark: "#111827", light: "#FFFFFF" },
+    })
+      .then(setPickupQrDataUrl)
+      .catch(() => setPickupQrDataUrl(null));
+  }, [ride.code, ride.customerName, ride.driver?.name, ride.status]);
 
   const driverPos: [number, number] | null = useMemo(() => {
     if (ride.driver) return [ride.driver.lastLocation.lat, ride.driver.lastLocation.lng];
@@ -384,6 +423,7 @@ export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lan
         )}
 
         <FitBounds ride={ride} />
+        <AutoFollowDriver driverPos={driverPos} status={ride.status} />
       </MapContainer>
 
       {/* LIVE badge */}
@@ -451,6 +491,7 @@ export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lan
             <div>
               <p className="text-xs text-gray-400">Fare</p>
               <p className="text-lg font-bold text-green-400">{formatRupiah(ride.price.amount)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Bayar di akhir • {String(ride.paymentMethod ?? "cash").toUpperCase()}</p>
             </div>
             <div className="text-right">
               {ride.driver ? (
@@ -471,6 +512,15 @@ export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lan
               )}
             </div>
           </div>
+
+          {pickupQrDataUrl && (
+            <div className="border-t border-gray-700 pt-3 mt-1">
+              <p className="text-xs text-gray-400 mb-2">QR verifikasi penumpang (scan saat penjemputan)</p>
+              <div className="bg-white rounded-lg p-2 inline-block">
+                <img src={pickupQrDataUrl} alt="Pickup verification QR" className="w-28 h-28" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
