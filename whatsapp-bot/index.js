@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
 const qrcode = require("qrcode-terminal");
 const {
   default: makeWASocket,
@@ -34,6 +35,10 @@ const incomingQueues = new Map();
 const sendRateState = new Map();
 const spamState = new Map();
 let globalSendQueue = Promise.resolve();
+
+let currentQR = null;
+let isConnected = false;
+let connectedNumber = null;
 
 ensureDirs();
 migrateLegacyState();
@@ -989,6 +994,29 @@ async function pollDriverAssignments(sock) {
   }
 }
 
+const qrServer = http.createServer((req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", "application/json");
+
+  if (req.url === "/qr-status") {
+    res.end(JSON.stringify({
+      connected: isConnected,
+      hasQR: !!currentQR,
+      qr: currentQR,
+      number: connectedNumber,
+    }));
+    return;
+  }
+
+  res.statusCode = 404;
+  res.end("{}");
+});
+
+const QR_PORT = process.env.QR_SERVER_PORT || 3001;
+qrServer.listen(QR_PORT, () => {
+  console.log(`QR server running on port ${QR_PORT}`);
+});
+
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion();
@@ -1004,15 +1032,22 @@ async function startBot() {
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
+      currentQR = qr;
+      isConnected = false;
       console.log("\nScan QR berikut dengan nomor WhatsApp bot:\n");
       qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {
+      isConnected = true;
+      connectedNumber = sock.user?.id || null;
+      currentQR = null;
       console.log("✅ WhatsApp bot connected");
     }
 
     if (connection === "close") {
+      isConnected = false;
+      connectedNumber = null;
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       console.log("❌ Connection closed", code, "reconnect:", shouldReconnect);
