@@ -46,3 +46,23 @@ export const getLandingStats = query({
     };
   },
 });
+
+export const getAdminStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const drivers = await ctx.db.query("drivers").collect();
+    const rides = await ctx.db.query("rides").collect();
+
+    const now = Date.now();
+    const d = new Date(now);
+    const startOfDayUtc = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+    const activeStatuses = new Set(["dispatching", "awaiting_driver_response", "assigned", "driver_arriving", "picked_up"]);
+
+    return {
+      driversOnline: drivers.filter((driver) => driver.availability === "online").length,
+      activeRides: rides.filter((ride) => activeStatuses.has(ride.status)).length,
+      ridesToday: rides.filter((ride) => (ride.createdAt ?? 0) >= startOfDayUtc).length,
+    };
+  },
+});

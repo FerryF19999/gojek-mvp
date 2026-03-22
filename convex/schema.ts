@@ -123,6 +123,8 @@ export default defineSchema({
       v.literal("gopay"),
       v.literal("dana"),
     ),
+    passengerRating: v.optional(v.number()),
+    passengerRatingAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

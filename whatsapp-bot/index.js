@@ -9,6 +9,7 @@ const {
 } = require("@whiskeysockets/baileys");
 
 const API_BASE = process.env.NEMU_API_BASE || "https://gojek-mvp.vercel.app/api";
+const ADMIN_NUMBER = normalizePhone(process.env.ADMIN_NUMBER || "");
 const AUTH_DIR = path.join(__dirname, "session");
 const SESSIONS_DIR = path.join(__dirname, "sessions");
 const LOGS_DIR = path.join(__dirname, "logs");
@@ -22,12 +23,11 @@ const SPAM_BLOCK_MS = 60 * 1000;
 const REPLY_DELAY_MS = 1500;
 const PER_NUMBER_MIN_INTERVAL_MS = 2000;
 const DRIVER_POLL_INTERVAL_MS = 30 * 1000;
+const RATING_TIMEOUT_MS = 5 * 60 * 1000;
 
 const STATUS_MESSAGES = {
-  assigned: "🏍️ Driver ditemukan! Driver menuju lokasi kamu.",
   driver_arriving: "📍 Driver hampir sampai!",
   picked_up: "🛣️ Perjalanan dimulai!",
-  completed: "✅ Perjalanan selesai. Silakan bayar ya.",
 };
 
 const incomingQueues = new Map();
@@ -85,6 +85,43 @@ function pseudoCoord(seed, base, spread) {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
   return base + ((hash % 1000) / 1000 - 0.5) * spread;
+}
+
+function formatIdr(amount) {
+  return new Intl.NumberFormat("id-ID").format(Math.max(0, Math.round(amount || 0)));
+}
+
+function estimateDistanceKm(pickup, destination) {
+  const p = String(pickup || "").toLowerCase();
+  const d = String(destination || "").toLowerCase();
+  if (!p || !d) return 3;
+  if (p === d) return 2;
+
+  const areas = [
+    "jakarta", "depok", "bogor", "bekasi", "tangerang", "bandung", "surabaya", "medan", "semarang", "yogyakarta", "bali",
+  ];
+  const pArea = areas.find((a) => p.includes(a));
+  const dArea = areas.find((a) => d.includes(a));
+
+  if (pArea && dArea && pArea !== dArea) return 10;
+
+  const pickupWords = new Set(p.split(/[^a-z0-9]+/).filter(Boolean));
+  const destinationWords = new Set(d.split(/[^a-z0-9]+/).filter(Boolean));
+  const overlap = [...pickupWords].filter((w) => destinationWords.has(w)).length;
+
+  if (overlap >= 2) return 3;
+  if (overlap === 1) return 5;
+  return 7;
+}
+
+function calculateFareEstimate(pickup, destination) {
+  const baseFare = 8000;
+  const perKm = 2500;
+  const km = estimateDistanceKm(pickup, destination);
+  return {
+    km,
+    amount: baseFare + km * perKm,
+  };
 }
 
 function getSessionFile(phone) {
@@ -279,6 +316,16 @@ async function getRideStatus(rideCode) {
   return res.json();
 }
 
+async function submitRideRating(rideCode, rating) {
+  const res = await fetch(`${API_BASE}/rides/${encodeURIComponent(rideCode)}/rating`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating }),
+  });
+  if (!res.ok) throw new Error(`Rating submit failed (${res.status})`);
+  return res.json();
+}
+
 async function registerDriver(phone, fullName, plate, city) {
   const payload = {
     fullName,
@@ -325,6 +372,14 @@ async function getDriverRides(token) {
   return data.rides || data.data || data.items || [];
 }
 
+async function getDriverEarnings(token) {
+  const res = await fetch(`${API_BASE}/drivers/me/earnings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Get earnings failed (${res.status})`);
+  return res.json();
+}
+
 async function driverRespondRide(token, rideCode, action) {
   const endpoint = action === "accept" ? "accept" : "decline";
   const res = await fetch(`${API_BASE}/drivers/me/rides/${encodeURIComponent(rideCode)}/${endpoint}`, {
@@ -334,6 +389,68 @@ async function driverRespondRide(token, rideCode, action) {
 
   if (!res.ok) throw new Error(`${endpoint} ride failed (${res.status})`);
   return res.json();
+}
+
+async function fetchJson(pathname) {
+  const res = await fetch(`${API_BASE}${pathname}`);
+  if (!res.ok) throw new Error(`API failed ${pathname} (${res.status})`);
+  return res.json();
+}
+
+async function handleAdminCommand(sock, jid, msg) {
+  const command = String(msg || "").trim().toLowerCase();
+
+  if (!command || command === "help") {
+    await sendReply(
+      sock,
+      jid,
+      "🛠️ Admin commands:\n- status\n- drivers\n- rides\n- help"
+    );
+    return;
+  }
+
+  try {
+    if (command === "status") {
+      const data = await fetchJson("/admin/stats");
+      await sendReply(
+        sock,
+        jid,
+        `🟢 Driver online: ${data.driversOnline || 0}\n🏍️ Ride aktif: ${data.activeRides || 0}\n📊 Ride hari ini: ${data.ridesToday || 0}`
+      );
+      return;
+    }
+
+    if (command === "drivers") {
+      const data = await fetchJson("/drivers?status=online");
+      const drivers = data.drivers || [];
+      if (!drivers.length) {
+        await sendReply(sock, jid, "Tidak ada driver online saat ini.");
+        return;
+      }
+      const lines = drivers.map((d, idx) => `${idx + 1}. ${d.name || "Driver"} - ${d.plate || "-"}`);
+      await sendReply(sock, jid, `🟢 Driver online (${drivers.length}):\n${lines.join("\n")}`);
+      return;
+    }
+
+    if (command === "rides") {
+      const data = await fetchJson("/rides?status=active");
+      const rides = data.rides || [];
+      if (!rides.length) {
+        await sendReply(sock, jid, "Tidak ada ride aktif saat ini.");
+        return;
+      }
+      const lines = rides.map(
+        (r, idx) =>
+          `${idx + 1}. ${r.rideCode || r.code} | Penumpang: ${r.passengerName || "-"} | Driver: ${r.driverName || "-"} | ${r.status || "-"}`
+      );
+      await sendReply(sock, jid, `🏍️ Ride aktif (${rides.length}):\n${lines.join("\n")}`);
+      return;
+    }
+
+    await sendReply(sock, jid, "Perintah admin tidak dikenal. Ketik *help*.");
+  } catch {
+    await sendReply(sock, jid, "Gagal ambil data admin. Coba lagi bentar.");
+  }
 }
 
 async function handlePassenger(sock, jid, phone, session, msg) {
@@ -380,12 +497,15 @@ async function handlePassenger(sock, jid, phone, session, msg) {
     }
 
     session.data.payment = payment;
+    const estimate = calculateFareEstimate(session.data.pickup, session.data.destination);
+    session.data.estimatedFare = estimate.amount;
+    session.data.estimatedKm = estimate.km;
     session.state = "CONFIRM";
     writeSession(phone, session);
     await sendReply(
       sock,
       jid,
-      `Oke konfirmasi dulu ya:\n📍 Jemput: ${session.data.pickup}\n🏁 Tujuan: ${session.data.destination}\n💳 Bayar: ${payment.toUpperCase()}\n\nBetul? (ya/tidak)`
+      `Oke konfirmasi dulu ya:\n📍 Jemput: ${session.data.pickup}\n🏁 Tujuan: ${session.data.destination}\n💳 Bayar: ${payment.toUpperCase()}\n💰 Estimasi: Rp ${formatIdr(estimate.amount)}\n\nBetul? (ya/tidak)`
     );
     return;
   }
@@ -412,7 +532,7 @@ async function handlePassenger(sock, jid, phone, session, msg) {
       writeSession(phone, session);
 
       const rides = readRidesIndex();
-      rides[rideCode] = { phone, lastStatus: "created" };
+      rides[rideCode] = { phone, lastStatus: "created", assignedNotified: false, ratingAsked: false };
       writeRidesIndex(rides);
 
       await sendReply(
@@ -426,6 +546,37 @@ async function handlePassenger(sock, jid, phone, session, msg) {
     return;
   }
 
+  if (session.state === "AWAITING_RATING") {
+    const rating = Number(String(msg || "").trim());
+    const ratingMeta = session.data?.ratingMeta || {};
+
+    if (ratingMeta.expiresAt && now() > ratingMeta.expiresAt) {
+      session.state = "IDLE";
+      session.rideCode = null;
+      session.data = {};
+      writeSession(phone, session);
+      return;
+    }
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      await sendReply(sock, jid, "Ketik angka 1-5 ya untuk kasih rating driver.");
+      return;
+    }
+
+    try {
+      await submitRideRating(ratingMeta.rideCode || session.rideCode, rating);
+      await sendReply(sock, jid, `Makasih ratingnya! ${"⭐".repeat(rating)}`);
+    } catch {
+      await sendReply(sock, jid, "Maaf, gagal simpan rating. Nanti coba lagi ya.");
+    }
+
+    session.state = "IDLE";
+    session.rideCode = null;
+    session.data = {};
+    writeSession(phone, session);
+    return;
+  }
+
   if (session.state === "BOOKED") {
     await sendReply(sock, jid, `Ride kamu masih jalan ya. Kode: ${session.rideCode}`);
   }
@@ -433,6 +584,20 @@ async function handlePassenger(sock, jid, phone, session, msg) {
 
 async function handleDriver(sock, jid, phone, session, msg) {
   const text = msg.toLowerCase();
+
+  if (["saldo", "penghasilan"].includes(text) && ["CHECKED_IN", "CHECKED_OUT"].includes(session.state)) {
+    try {
+      const data = await getDriverEarnings(session.data.driverToken);
+      await sendReply(
+        sock,
+        jid,
+        `💰 Penghasilan hari ini: Rp ${formatIdr(data.earningsToday || 0)}\n🏍️ Total ride: ${data.totalRides || 0}\n⭐ Rating: ${Number(data.avgRating || 0).toFixed(1)}`
+      );
+    } catch {
+      await sendReply(sock, jid, "Gagal ambil data penghasilan. Coba lagi nanti ya.");
+    }
+    return;
+  }
 
   if (session.state === "IDLE") {
     session.state = "ASK_NAME";
@@ -597,6 +762,11 @@ async function handleMessage(sock, jid, text) {
 
   logLine("IN", phone, msg);
 
+  if (ADMIN_NUMBER && phone === ADMIN_NUMBER) {
+    await handleAdminCommand(sock, jid, msg);
+    return;
+  }
+
   const spam = checkSpam(phone);
   if (spam.shouldWarn) {
     await sendReply(sock, jid, "Slow down ya 😅");
@@ -657,26 +827,67 @@ async function pollPassengerRideUpdates(sock) {
 
     try {
       const data = await getRideStatus(rideCode);
-      const status = data.status || data?.ride?.status;
-      if (!status || status === rec.lastStatus) continue;
-
-      rec.lastStatus = status;
-      rides[rideCode] = rec;
+      const ride = data.ride || data;
+      const status = ride.status;
+      if (!status) continue;
 
       const jid = `${rec.phone}@s.whatsapp.net`;
-      const msg = STATUS_MESSAGES[status];
-      if (msg) {
-        await sendReply(sock, jid, `${msg}\nKode ride: ${rideCode}`);
+
+      if (status === "assigned" && !rec.assignedNotified) {
+        const driverName = ride.driver?.name || "Driver";
+        const driverPlate = ride.driver?.plate || ride.driver?.vehiclePlate || "-";
+        await sendReply(
+          sock,
+          jid,
+          `✅ Driver ditemukan!\n🏍️ ${driverName} - ${driverPlate}\n📍 Tracking live: https://gojek-mvp.vercel.app/track/${rideCode}\n\nDriver sedang menuju lokasi kamu...`
+        );
+        rec.assignedNotified = true;
+      }
+
+      if (status !== rec.lastStatus) {
+        rec.lastStatus = status;
+        const msg = STATUS_MESSAGES[status];
+        if (msg) {
+          await sendReply(sock, jid, `${msg}\nKode ride: ${rideCode}`);
+        }
       }
 
       if (status === "completed") {
-        delete rides[rideCode];
         const session = readSession(rec.phone);
-        session.state = "IDLE";
-        session.rideCode = null;
-        session.data = {};
-        writeSession(rec.phone, session);
+        if (!rec.ratingAsked) {
+          rec.ratingAsked = true;
+          session.state = "AWAITING_RATING";
+          session.rideCode = rideCode;
+          session.data = {
+            ratingMeta: {
+              rideCode,
+              driverName: ride.driver?.name || "Driver",
+              expiresAt: now() + RATING_TIMEOUT_MS,
+            },
+          };
+          writeSession(rec.phone, session);
+
+          await sendReply(
+            sock,
+            jid,
+            `Perjalanan selesai! Kasih bintang buat driver ${session.data.ratingMeta.driverName}? (ketik 1-5)`
+          );
+        }
       }
+
+      if (rec.ratingAsked) {
+        const session = readSession(rec.phone);
+        const expiresAt = session?.data?.ratingMeta?.expiresAt;
+        if (expiresAt && now() > expiresAt) {
+          session.state = "IDLE";
+          session.rideCode = null;
+          session.data = {};
+          writeSession(rec.phone, session);
+          delete rides[rideCode];
+        }
+      }
+
+      rides[rideCode] = rec;
     } catch (e) {
       console.warn("[poll-passenger] failed", rideCode, e.message);
     }

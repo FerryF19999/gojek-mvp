@@ -292,6 +292,7 @@ export const getRideByCode = query({
     let driver: {
       name: string;
       vehicleType: string;
+      plate?: string;
       lastLocation: { lat: number; lng: number; updatedAt: number };
     } | null = null;
 
@@ -299,9 +300,14 @@ export const getRideByCode = query({
       const driverDoc = await ctx.db.get(ride.assignedDriverId);
       if (driverDoc) {
         const userDoc = await ctx.db.get(driverDoc.userId);
+        const applications = await ctx.db
+          .query("driverApplications")
+          .filter((q) => q.eq(q.field("driverId"), ride.assignedDriverId))
+          .take(1);
         driver = {
           name: userDoc?.name ?? "Driver",
           vehicleType: driverDoc.vehicleType,
+          plate: applications[0]?.vehiclePlate,
           lastLocation: driverDoc.lastLocation,
         };
       }
@@ -319,5 +325,91 @@ export const getRideByCode = query({
       paymentMethod: ride.paymentMethod,
       driver,
     };
+  },
+});
+
+export const listRidesForAdmin = query({
+  args: { status: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const activeStatuses = ["dispatching", "awaiting_driver_response", "assigned", "driver_arriving", "picked_up"];
+    let rides;
+
+    if (args.status === "active") {
+      rides = await ctx.db.query("rides").collect();
+      rides = rides.filter((ride) => activeStatuses.includes(ride.status));
+    } else if (args.status) {
+      rides = await ctx.db
+        .query("rides")
+        .withIndex("by_status", (q) => q.eq("status", args.status as any))
+        .collect();
+    } else {
+      rides = await ctx.db.query("rides").collect();
+    }
+
+    return Promise.all(
+      rides
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map(async (ride) => {
+          let driverName: string | null = null;
+          if (ride.assignedDriverId) {
+            const driver = await ctx.db.get(ride.assignedDriverId);
+            if (driver) {
+              const user = await ctx.db.get(driver.userId);
+              driverName = user?.name ?? "Driver";
+            }
+          }
+
+          return {
+            rideCode: ride.code,
+            passengerName: ride.customerName,
+            driverName,
+            status: ride.status,
+          };
+        })
+    );
+  },
+});
+
+export const submitRideRating = mutation({
+  args: {
+    code: v.string(),
+    rating: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const value = Math.round(args.rating);
+    if (value < 1 || value > 5) throw new Error("rating must be between 1 and 5");
+
+    const ride = await ctx.db
+      .query("rides")
+      .withIndex("by_code", (q) => q.eq("code", args.code))
+      .unique();
+
+    if (!ride) throw new Error("Ride not found");
+    if (ride.status !== "completed") throw new Error("Ride is not completed yet");
+
+    const now = Date.now();
+    await ctx.db.patch(ride._id, {
+      passengerRating: value,
+      passengerRatingAt: now,
+      updatedAt: now,
+      timeline: [...ride.timeline, { type: "passenger_rating", at: now, by: "passenger", note: `Rating: ${value}` }],
+    });
+
+    if (ride.assignedDriverId) {
+      const driver = await ctx.db.get(ride.assignedDriverId);
+      if (driver) {
+        const completedRides = await ctx.db
+          .query("rides")
+          .withIndex("by_assignedDriverId", (q) => q.eq("assignedDriverId", ride.assignedDriverId))
+          .collect();
+        const ratings = completedRides
+          .map((r) => (r._id === ride._id ? value : r.passengerRating))
+          .filter((rating): rating is number => typeof rating === "number");
+        const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : driver.rating ?? 5;
+        await ctx.db.patch(ride.assignedDriverId, { rating: avg, lastActiveAt: now });
+      }
+    }
+
+    return { ok: true, rating: value };
   },
 });

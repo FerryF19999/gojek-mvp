@@ -208,3 +208,61 @@ export const getDriverRides = query({
     }));
   },
 });
+
+export const listDriversForAdmin = query({
+  args: { status: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const drivers = args.status
+      ? await ctx.db
+          .query("drivers")
+          .withIndex("by_availability", (q) => q.eq("availability", args.status as any))
+          .collect()
+      : await ctx.db.query("drivers").collect();
+
+    const applications = await ctx.db.query("driverApplications").collect();
+    const appByDriverId = new Map(
+      applications.filter((app) => app.driverId).map((app) => [String(app.driverId), app])
+    );
+
+    return Promise.all(
+      drivers.map(async (driver) => {
+        const user = await ctx.db.get(driver.userId);
+        const app = appByDriverId.get(String(driver._id));
+        return {
+          driverId: driver._id,
+          name: user?.name ?? "Driver",
+          phone: user?.phone ?? null,
+          plate: app?.vehiclePlate ?? null,
+          status: driver.availability,
+        };
+      })
+    );
+  },
+});
+
+export const getDriverEarnings = query({
+  args: { driverId: v.id("drivers") },
+  handler: async (ctx, args) => {
+    const rides = await ctx.db
+      .query("rides")
+      .withIndex("by_assignedDriverId", (q) => q.eq("assignedDriverId", args.driverId))
+      .collect();
+
+    const now = Date.now();
+    const d = new Date(now);
+    const startOfDayUtc = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+    const completedRides = rides.filter((ride) => ride.status === "completed");
+    const todayCompleted = completedRides.filter((ride) => (ride.updatedAt ?? 0) >= startOfDayUtc);
+
+    const earningsToday = todayCompleted.reduce((sum, ride) => sum + (ride.price?.amount ?? 0), 0);
+    const ratings = completedRides.map((ride) => ride.passengerRating).filter((rating): rating is number => typeof rating === "number");
+    const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+
+    return {
+      earningsToday,
+      totalRides: todayCompleted.length,
+      avgRating,
+    };
+  },
+});
