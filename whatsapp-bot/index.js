@@ -185,6 +185,14 @@ function writeRidesIndex(data) {
   fs.writeFileSync(RIDES_FILE, JSON.stringify(data, null, 2));
 }
 
+function removeRideFromIndex(rideCode) {
+  if (!rideCode) return;
+  const rides = readRidesIndex();
+  if (!rides[rideCode]) return;
+  delete rides[rideCode];
+  writeRidesIndex(rides);
+}
+
 function migrateLegacyState() {
   if (!fs.existsSync(LEGACY_STATES_FILE)) return;
 
@@ -546,11 +554,12 @@ async function handlePassenger(sock, jid, phone, session, msg) {
     return;
   }
 
-  if (session.state === "AWAITING_RATING") {
+  if (session.state === "RATING") {
     const rating = Number(String(msg || "").trim());
     const ratingMeta = session.data?.ratingMeta || {};
 
     if (ratingMeta.expiresAt && now() > ratingMeta.expiresAt) {
+      removeRideFromIndex(ratingMeta.rideCode || session.rideCode);
       session.state = "IDLE";
       session.rideCode = null;
       session.data = {};
@@ -570,6 +579,7 @@ async function handlePassenger(sock, jid, phone, session, msg) {
       await sendReply(sock, jid, "Maaf, gagal simpan rating. Nanti coba lagi ya.");
     }
 
+    removeRideFromIndex(ratingMeta.rideCode || session.rideCode);
     session.state = "IDLE";
     session.rideCode = null;
     session.data = {};
@@ -583,9 +593,13 @@ async function handlePassenger(sock, jid, phone, session, msg) {
 }
 
 async function handleDriver(sock, jid, phone, session, msg) {
-  const text = msg.toLowerCase();
+  const text = msg.toLowerCase().trim();
 
-  if (["saldo", "penghasilan"].includes(text) && ["CHECKED_IN", "CHECKED_OUT"].includes(session.state)) {
+  if (["saldo", "penghasilan"].includes(text)) {
+    if (!session.data?.driverToken) {
+      await sendReply(sock, jid, "Data driver belum siap. Daftar/check-in dulu ya.");
+      return;
+    }
     try {
       const data = await getDriverEarnings(session.data.driverToken);
       await sendReply(
@@ -856,7 +870,7 @@ async function pollPassengerRideUpdates(sock) {
         const session = readSession(rec.phone);
         if (!rec.ratingAsked) {
           rec.ratingAsked = true;
-          session.state = "AWAITING_RATING";
+          session.state = "RATING";
           session.rideCode = rideCode;
           session.data = {
             ratingMeta: {
@@ -878,7 +892,10 @@ async function pollPassengerRideUpdates(sock) {
       if (rec.ratingAsked) {
         const session = readSession(rec.phone);
         const expiresAt = session?.data?.ratingMeta?.expiresAt;
-        if (expiresAt && now() > expiresAt) {
+
+        if (session?.state !== "RATING") {
+          delete rides[rideCode];
+        } else if (expiresAt && now() > expiresAt) {
           session.state = "IDLE";
           session.rideCode = null;
           session.data = {};
