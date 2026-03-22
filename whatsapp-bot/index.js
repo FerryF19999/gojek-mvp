@@ -8,9 +8,15 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
+const { ConvexHttpClient } = require("convex/browser");
 
 const API_BASE = process.env.NEMU_API_BASE || "https://gojek-mvp.vercel.app/api";
 const ADMIN_NUMBER = normalizePhone(process.env.ADMIN_NUMBER || "");
+const CONVEX_URL = process.env.CONVEX_URL;
+let convexClient = null;
+if (CONVEX_URL) {
+  convexClient = new ConvexHttpClient(CONVEX_URL);
+}
 const AUTH_DIR = path.join(__dirname, "session");
 const SESSIONS_DIR = path.join(__dirname, "sessions");
 const LOGS_DIR = path.join(__dirname, "logs");
@@ -56,6 +62,19 @@ function sleep(ms) {
 
 function now() {
   return Date.now();
+}
+
+async function pushQRToConvex(qr, connected, phoneNumber) {
+  if (!convexClient) return;
+  try {
+    await convexClient.mutation("waBot:saveQR", {
+      qr,
+      connected,
+      phoneNumber: phoneNumber || undefined,
+    });
+  } catch (e) {
+    console.error("Failed to push QR to Convex:", e.message);
+  }
 }
 
 function normalizePhone(raw) {
@@ -1030,10 +1049,11 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       currentQR = qr;
       isConnected = false;
+      await pushQRToConvex(qr, false, null);
       console.log("\nScan QR berikut dengan nomor WhatsApp bot:\n");
       qrcode.generate(qr, { small: true });
     }
@@ -1042,12 +1062,14 @@ async function startBot() {
       isConnected = true;
       connectedNumber = sock.user?.id || null;
       currentQR = null;
+      await pushQRToConvex(null, true, sock.user?.id || null);
       console.log("✅ WhatsApp bot connected");
     }
 
     if (connection === "close") {
       isConnected = false;
       connectedNumber = null;
+      await pushQRToConvex(null, false, null);
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       console.log("❌ Connection closed", code, "reconnect:", shouldReconnect);

@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server'
+import { ConvexHttpClient } from 'convex/browser'
 
-const BOT_QR_URL = process.env.WA_BOT_QR_URL || 'http://localhost:3001/qr-status'
+const convex = new ConvexHttpClient(process.env.CONVEX_URL!)
 
 export async function GET() {
   try {
-    const res = await fetch(BOT_QR_URL, { cache: 'no-store' })
-    const data = await res.json()
-    return NextResponse.json(data)
-  } catch {
-    return NextResponse.json({ connected: false, hasQR: false, qr: null, error: 'Bot offline' })
+    const status = await (convex as any).query('waBot:getStatus', {})
+    return NextResponse.json({
+      connected: status.connected,
+      hasQR: !!status.qr,
+      qr: status.qr,
+      number: status.phoneNumber,
+    })
+  } catch (e) {
+    return NextResponse.json({ connected: false, hasQR: false, qr: null, error: 'Failed to fetch status' })
   }
 }

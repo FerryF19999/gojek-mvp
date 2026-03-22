@@ -260,4 +260,11 @@ export default defineSchema({
     createdAt: v.number(),
     expiresAt: v.number(),
   }).index("by_token", ["token"]),
+
+  waBotStatus: defineTable({
+    qr: v.union(v.string(), v.null()),
+    connected: v.boolean(),
+    phoneNumber: v.optional(v.string()),
+    updatedAt: v.number(),
+  }),
 });
