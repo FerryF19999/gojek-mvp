@@ -1,54 +1,56 @@
-"use client";
+'use client'
+import { useEffect, useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 
-import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
-import { Button } from "@/components/ui/button";
-
-const BOT_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "6288971081746";
+type WAQRStatus = {
+  connected: boolean
+  hasQR: boolean
+  qr: string | null
+  number?: string | null
+  error?: string
+}
 
 export default function QRDriverPage() {
-  const qrValue = `https://wa.me/${BOT_NUMBER}?text=driver`;
+  const [status, setStatus] = useState<WAQRStatus>({ connected: false, hasQR: false, qr: null })
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/admin/wa-qr', { cache: 'no-store' })
+        setStatus(await res.json())
+      } catch {}
+    }
+    poll()
+    const interval = setInterval(poll, 3000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-green-500/30 overflow-x-hidden">
-      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl print:hidden">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link href="/landing" className="flex items-center gap-2 font-bold text-lg">
-            <span className="text-2xl">🏍️</span>
-            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Nemu Ojek</span>
-          </Link>
-          <Link href="/qr">
-            <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-full px-5 text-sm font-medium">
-              Kembali
-            </Button>
-          </Link>
+    <div style={{ minHeight: '100vh', background: '#0a0a0a', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
+      <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏍️</div>
+      <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>Daftar sebagai Driver</h1>
+      <p style={{ color: '#9ca3af', marginBottom: '32px', textAlign: 'center' }}>Scan QR ini untuk menghubungkan WhatsApp kamu ke Nemu sebagai driver</p>
+
+      {status.connected ? (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '64px' }}>✅</div>
+          <p style={{ color: '#4ade80', marginTop: '16px', fontSize: '18px' }}>Berhasil terhubung!</p>
+          {status.number && <p style={{ color: '#9ca3af' }}>Nomor: {status.number}</p>}
         </div>
-      </nav>
-
-      <main className="pt-28 pb-16 px-4 print:pt-8">
-        <div className="mx-auto max-w-2xl rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8 text-center">
-          <div className="text-4xl mb-4">🏍️</div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">Daftar Jadi Driver Nemu</h1>
-          <p className="text-zinc-600 mb-8">Scan QR ini untuk mulai daftar</p>
-
-          <div className="flex justify-center mb-8">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <QRCodeSVG value={qrValue} size={220} />
-            </div>
+      ) : status.hasQR && status.qr ? (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '16px', display: 'inline-block', marginBottom: '24px' }}>
+            <QRCodeSVG value={status.qr} size={256} />
           </div>
-
-          <div className="rounded-xl bg-blue-50 p-5 max-w-sm mx-auto text-left mb-6">
-            <p className="font-semibold mb-2">Cara daftar:</p>
-            <p className="text-sm mb-1">1️⃣ Scan QR dengan kamera HP</p>
-            <p className="text-sm mb-1">2️⃣ WhatsApp terbuka otomatis</p>
-            <p className="text-sm">3️⃣ Ikuti proses pendaftaran driver</p>
-          </div>
-
-          <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl h-11 px-6 font-semibold print:hidden">
-            🖨️ Print QR
-          </Button>
+          <p style={{ color: '#6b7280', fontSize: '14px' }}>WA → Setelan → Perangkat Tertaut → Tautkan Perangkat</p>
+          <p style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px' }}>Auto-refresh setiap 3 detik</p>
         </div>
-      </main>
+      ) : (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px' }}>⏳</div>
+          <p style={{ color: '#9ca3af', marginTop: '16px' }}>{status.error || 'Menunggu koneksi bot...'}</p>
+        </div>
+      )}
     </div>
-  );
+  )
 }
