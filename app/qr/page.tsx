@@ -1,47 +1,59 @@
-import Link from "next/link";
+"use client";
 
-const cardStyle =
-  "block rounded-3xl border border-slate-200 bg-white p-8 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default function QRIndexPage() {
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8 print:bg-white">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <header className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            QR Nemu Ojek
-          </h1>
-          <p className="mt-2 text-sm text-slate-600 sm:text-base">
-            Pilih jenis QR sesuai kebutuhan akuisisi pengguna.
-          </p>
-        </header>
-
-        <section className="grid gap-4 md:grid-cols-2">
-          <Link href="/qr/penumpang" className={cardStyle}>
-            <p className="text-sm font-medium uppercase tracking-wide text-emerald-600">
-              Penumpang
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-900">
-              Mau Pesan Ojek?
-            </h2>
-            <p className="mt-2 text-slate-600">
-              Buka halaman QR untuk calon penumpang dan langsung arahkan ke WhatsApp bot.
-            </p>
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-green-500/30 overflow-x-hidden">
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <Link href="/landing" className="flex items-center gap-2 font-bold text-lg">
+            <span className="text-2xl">🏍️</span>
+            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Nemu Ojek</span>
           </Link>
-
-          <Link href="/qr/driver" className={cardStyle}>
-            <p className="text-sm font-medium uppercase tracking-wide text-blue-600">
-              Driver
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-900">
-              Mau Jadi Driver?
-            </h2>
-            <p className="mt-2 text-slate-600">
-              Buka halaman QR untuk pendaftaran driver baru lewat WhatsApp.
-            </p>
+          <Link href="/driver/signup">
+            <Button size="sm" className="bg-green-600 hover:bg-green-500 text-white border-0 rounded-full px-5 text-sm font-medium">
+              Daftar
+            </Button>
           </Link>
-        </section>
-      </div>
-    </main>
+        </div>
+      </nav>
+
+      <main className="pt-28 pb-16 px-4">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-10">
+            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.1]">
+              <span className="bg-gradient-to-b from-white to-white/70 bg-clip-text text-transparent">QR Nemu Ojek</span>
+            </h1>
+            <p className="mt-3 text-white/50">Pilih sesuai kebutuhanmu</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
+              <div className="text-4xl mb-4">🛵</div>
+              <h2 className="text-2xl font-bold mb-2">Mau Pesan Ojek?</h2>
+              <p className="text-zinc-600 mb-6">Pesan ojek lewat WhatsApp, mudah dan cepat.</p>
+              <Link href="/qr/penumpang">
+                <Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold">
+                  Pesan Sekarang
+                </Button>
+              </Link>
+            </div>
+
+            <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
+              <div className="text-4xl mb-4">🏍️</div>
+              <h2 className="text-2xl font-bold mb-2">Mau Jadi Driver?</h2>
+              <p className="text-zinc-600 mb-6">Daftar jadi mitra driver, tentukan jadwalmu sendiri.</p>
+              <Link href="/qr/driver">
+                <Button className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl h-11 px-6 font-semibold">
+                  Daftar Driver
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

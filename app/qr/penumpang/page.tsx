@@ -1,47 +1,54 @@
 "use client";
 
+import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
+import { Button } from "@/components/ui/button";
 
-const fallbackNumber = "6288971081746";
-
-function getWaLink(text: string) {
-  const number = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || fallbackNumber;
-  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
-}
+const BOT_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_BOT_NUMBER || "6288971081746";
 
 export default function QRPenumpangPage() {
-  const qrValue = getWaLink("halo");
+  const qrValue = `https://wa.me/${BOT_NUMBER}?text=halo`;
 
   return (
-    <main className="min-h-screen bg-white px-4 py-10 sm:px-6 print:p-0">
-      <div className="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8 print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
-        <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-          Pesan Ojek via WhatsApp
-        </h1>
-        <p className="mt-2 text-slate-600 sm:text-lg">
-          Scan QR ini, lalu ikuti instruksi bot
-        </p>
-
-        <div className="mt-8 flex justify-center">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <QRCodeSVG value={qrValue} size={256} />
-          </div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-green-500/30 overflow-x-hidden">
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl print:hidden">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <Link href="/landing" className="flex items-center gap-2 font-bold text-lg">
+            <span className="text-2xl">🏍️</span>
+            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Nemu Ojek</span>
+          </Link>
+          <Link href="/qr">
+            <Button size="sm" variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-full px-5 text-sm font-medium">
+              Kembali
+            </Button>
+          </Link>
         </div>
+      </nav>
 
-        <ol className="mx-auto mt-8 max-w-md list-decimal space-y-2 pl-6 text-left text-slate-700">
-          <li>Scan QR dengan kamera HP</li>
-          <li>WhatsApp terbuka otomatis</li>
-          <li>Kirim pesan → ikuti instruksi bot</li>
-        </ol>
+      <main className="pt-28 pb-16 px-4 print:pt-8">
+        <div className="mx-auto max-w-2xl rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8 text-center">
+          <div className="text-4xl mb-4">🛵</div>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">Pesan Ojek via WhatsApp</h1>
+          <p className="text-zinc-600 mb-8">Scan QR ini, lalu ikuti instruksi bot</p>
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="mt-8 inline-flex print:hidden items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-        >
-          Print
-        </button>
-      </div>
-    </main>
+          <div className="flex justify-center mb-8">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <QRCodeSVG value={qrValue} size={220} />
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-green-50 p-5 max-w-sm mx-auto text-left mb-6">
+            <p className="font-semibold mb-2">Cara pakai:</p>
+            <p className="text-sm mb-1">1️⃣ Scan QR dengan kamera HP</p>
+            <p className="text-sm mb-1">2️⃣ WhatsApp terbuka otomatis</p>
+            <p className="text-sm">3️⃣ Kirim pesan → ikuti instruksi bot</p>
+          </div>
+
+          <Button onClick={() => window.print()} className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold print:hidden">
+            🖨️ Print QR
+          </Button>
+        </div>
+      </main>
+    </div>
   );
 }
