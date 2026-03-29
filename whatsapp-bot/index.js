@@ -192,13 +192,24 @@ const server = http.createServer(async (req, res) => {
 
   // ─── Driver Session API ───
 
-  // ─── Send WhatsApp message to a phone number via central bot ───
+  // ─── Send WhatsApp message via any connected session ───
   if (pathname === "/send-message" && req.method === "POST") {
-    const { getSocket } = require("./central-bot");
-    const sock = getSocket();
+    // Find any connected session to send from
+    let sock = null;
+    try { const { getSocket } = require("./central-bot"); sock = getSocket(); } catch {}
+    if (!sock) {
+      // Use first connected driver/user session as sender
+      const sessions = listSessions();
+      const connected = sessions.find((s) => s.connected);
+      if (connected) {
+        const { activeSessions } = require("./driver-sessions");
+        const sessionData = activeSessions.get(connected.sessionId);
+        if (sessionData?.sock) sock = sessionData.sock;
+      }
+    }
     if (!sock) {
       res.writeHead(503);
-      res.end(JSON.stringify({ error: "Central bot not connected" }));
+      res.end(JSON.stringify({ error: "No connected WhatsApp session" }));
       return;
     }
     const body = await parseBody(req);
