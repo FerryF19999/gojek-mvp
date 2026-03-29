@@ -1,15 +1,15 @@
 module.exports = {
   apps: [{
     name: 'nemu-wa-bot',
-    script: './whatsapp-bot/index.js',
-    cwd: '/root/.openclaw/workspace/friday/gojek-mvp',
+    script: './index.js',
+    cwd: __dirname,
     restart_delay: 5000,
     max_restarts: 10,
     env: {
       NEMU_API_BASE: 'https://gojek-mvp.vercel.app/api',
+      NEMU_APP_URL: 'https://gojek-mvp.vercel.app',
       ADMIN_NUMBER: '6282120623389',
-      WHATSAPP_BOT_NUMBER: '6288971081746',
-      QR_SERVER_PORT: 3001,
+      BOT_PORT: 3001,
       CONVEX_URL: process.env.CONVEX_URL || 'https://YOUR_CONVEX_URL.convex.cloud'
     }
   }]

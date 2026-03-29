@@ -1,175 +1,300 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { launchCities, type LaunchCity } from "@/lib/launchCities";
 
-type Lang = "id" | "en";
+type Step = "form" | "qr" | "connected";
 
-const t = {
-  id: {
-    badge: "🏍️ Untuk AI Agent",
-    title: "Jadi Driver",
-    sub: "Daftar sebagai driver lewat API. Gak perlu form — AI agent baca instruksi, hit endpoint, langsung jalan.",
-    cityTitle: "🏙️ Kota Operasi",
-    cityHint: "Pilih kota operasional driver saat registrasi",
-    cityLabel: "Kota Operasi",
-    cityArea: "Area prioritas",
-    step2: "Subscribe — Rp 19.000/bulan",
-    step3: "Go Online & Terima Ride",
-    response: "Response:",
-    saveToken: "— simpan apiToken untuk auth",
-    demo30: "Demo mode: langsung aktif 30 hari. Production: integrasi payment gateway.",
-    done: "Ride masuk via webhook → accept → update lokasi → arrive → complete. Done! 🎉",
-    docsTitle: "Dokumentasi Lengkap",
-    docsSub: "Semua endpoint, contoh request/response, dan flow lengkap ada di satu file:",
-    readSkill: "📄 Baca skill.md",
-    apiDocs: "📡 API Docs",
-    landing: "🏠 Landing Page",
-    footer: "Built for AI Agents 🤖",
-  },
-  en: {
-    badge: "🏍️ For AI Agents",
-    title: "Become a Driver",
-    sub: "Register as a driver via API. No form needed — your AI agent reads instructions, calls endpoints, and starts immediately.",
-    cityTitle: "🏙️ Operating City",
-    cityHint: "Pick the city where driver will operate",
-    cityLabel: "Operating City",
-    cityArea: "Priority zones",
-    step2: "Subscribe — Rp 19,000/month",
-    step3: "Go Online & Accept Rides",
-    response: "Response:",
-    saveToken: "— save apiToken for auth",
-    demo30: "Demo mode: instantly active for 30 days. Production: integrate payment gateway.",
-    done: "Rides arrive via webhook → accept → update location → arrive → complete. Done! 🎉",
-    docsTitle: "Full Documentation",
-    docsSub: "All endpoints, request/response examples, and full flow in one file:",
-    readSkill: "📄 Read skill.md",
-    apiDocs: "📡 API Docs",
-    landing: "🏠 Landing Page",
-    footer: "Built for AI Agents 🤖",
-  },
-} as const;
+export default function DriverSignupPage() {
+  const [step, setStep] = useState<Step>("form");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  // Form fields
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [city, setCity] = useState<LaunchCity["id"]>("jakarta");
+
+  // Poll QR from Convex (real-time)
+  const sessionData = useQuery(
+    api.driverSessions.getQR,
+    sessionId ? { sessionId } : "skip"
+  );
+
+  // Watch for connection
+  useEffect(() => {
+    if (sessionData?.connected) {
+      setStep("connected");
+    }
+  }, [sessionData?.connected]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const selectedCity = launchCities.find((c) => c.id === city) ?? launchCities[0];
+      const sid = `driver-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      // Call bot server to create session
+      const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "http://localhost:3001";
+      const res = await fetch(`${botUrl}/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sid,
+          driverId: sid,
+          name: fullName,
+          registrationData: {
+            fullName,
+            phone,
+            vehiclePlate,
+            city: selectedCity.name,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Gagal membuat sesi. Pastikan bot server berjalan.");
+      }
+
+      setSessionId(sid);
+      setStep("qr");
+    } catch (err: any) {
+      setError(err.message || "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
+  }, [fullName, phone, vehiclePlate, city]);
+
   return (
-    <button
-      onClick={() => setLang(lang === "id" ? "en" : "id")}
-      className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white transition-all"
-      title={lang === "id" ? "Switch to English" : "Ganti ke Bahasa Indonesia"}
-    >
-      <span>{lang === "id" ? "🇮🇩" : "🇬🇧"}</span>
-      <span>{lang === "id" ? "ID" : "EN"}</span>
-    </button>
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <div className="mx-auto max-w-md px-4 py-12">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="text-4xl mb-3">🏍️</div>
+          <h1 className="text-2xl font-bold mb-2">Daftar Driver Nemu Ojek</h1>
+          <p className="text-white/50 text-sm">
+            Daftar, scan QR, langsung terima orderan via WhatsApp
+          </p>
+        </div>
+
+        {/* Progress */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          {[
+            { label: "Data Diri", s: "form" },
+            { label: "Scan QR", s: "qr" },
+            { label: "Selesai", s: "connected" },
+          ].map((item, i) => {
+            const isActive = item.s === step;
+            const isDone =
+              (step === "qr" && i === 0) ||
+              (step === "connected" && i < 2);
+            return (
+              <div key={item.s} className="flex items-center gap-2">
+                {i > 0 && <div className={`w-8 h-0.5 ${isDone || isActive ? "bg-green-500" : "bg-white/10"}`} />}
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold
+                    ${isDone ? "bg-green-500 text-white" : isActive ? "bg-green-500/20 text-green-400 border border-green-500/40" : "bg-white/5 text-white/30"}`}>
+                    {isDone ? "✓" : i + 1}
+                  </div>
+                  <span className={`text-xs ${isActive || isDone ? "text-white" : "text-white/30"}`}>
+                    {item.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Step 1: Registration Form */}
+        {step === "form" && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-4">
+              <h2 className="font-semibold text-lg">Data Diri</h2>
+
+              <div>
+                <label className="block text-sm text-white/60 mb-1">Nama Lengkap</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="contoh: Ahmad Supriadi"
+                  required
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40 placeholder:text-white/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/60 mb-1">Nomor HP</label>
+                <div className="flex gap-2">
+                  <span className="flex items-center rounded-xl border border-white/10 bg-black/40 px-3 text-white/50 text-sm">+62</span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                    placeholder="812-3456-7890"
+                    required
+                    className="flex-1 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40 placeholder:text-white/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/60 mb-1">Plat Nomor Kendaraan</label>
+                <input
+                  type="text"
+                  value={vehiclePlate}
+                  onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+                  placeholder="B 1234 XYZ"
+                  required
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40 placeholder:text-white/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-white/60 mb-1">Kota Operasional</label>
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value as LaunchCity["id"])}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40"
+                >
+                  {launchCities.map((c) => (
+                    <option key={c.id} value={c.id} className="bg-[#0a0a0a]">{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading || !fullName || !phone || !vehiclePlate}
+              className="w-full bg-green-600 hover:bg-green-500 text-white rounded-xl h-12 font-semibold text-base disabled:opacity-50"
+            >
+              {loading ? "Memproses..." : "Lanjut — Scan QR WhatsApp"}
+            </Button>
+
+            <p className="text-center text-white/30 text-xs">
+              Dengan mendaftar, kamu setuju dengan syarat & ketentuan Nemu Ojek
+            </p>
+          </form>
+        )}
+
+        {/* Step 2: QR Code Display */}
+        {step === "qr" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/[0.08] to-transparent p-6 text-center">
+              <h2 className="font-semibold text-lg mb-2">Scan QR dengan WhatsApp</h2>
+              <p className="text-white/50 text-sm mb-6">
+                Buka WhatsApp &gt; Linked Devices &gt; Link a Device &gt; Scan QR di bawah ini
+              </p>
+
+              <div className="bg-white rounded-2xl p-4 mx-auto w-fit mb-4">
+                {sessionData?.qrCode ? (
+                  <QRCodeDisplay value={sessionData.qrCode} />
+                ) : (
+                  <div className="w-64 h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full mx-auto mb-2" />
+                      <p className="text-black/50 text-sm">Generating QR...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-white/40 text-xs">
+                QR akan auto-refresh. Pastikan HP kamu terkoneksi internet.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4">
+              <h3 className="text-sm font-medium mb-2">Cara scan:</h3>
+              <ol className="text-white/50 text-sm space-y-1 list-decimal list-inside">
+                <li>Buka WhatsApp di HP kamu</li>
+                <li>Tap menu (&hellip;) &gt; <strong>Linked Devices</strong></li>
+                <li>Tap <strong>Link a Device</strong></li>
+                <li>Arahkan kamera ke QR di atas</li>
+              </ol>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Connected */}
+        {step === "connected" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/[0.08] to-transparent p-8 text-center">
+              <div className="text-5xl mb-4">✅</div>
+              <h2 className="text-xl font-bold mb-2">WhatsApp Terhubung!</h2>
+              <p className="text-white/50 mb-6">
+                Bot Nemu Ojek sudah aktif di nomor kamu.
+                <br />Cek WhatsApp untuk pesan welcome dari bot.
+              </p>
+
+              <div className="rounded-xl bg-black/30 border border-white/10 p-4 text-left space-y-2">
+                <p className="text-sm text-white/70">Perintah yang bisa kamu pakai:</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <span className="font-mono text-green-400">checkin</span>
+                    <span className="text-white/40 ml-1">mulai shift</span>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <span className="font-mono text-green-400">checkout</span>
+                    <span className="text-white/40 ml-1">selesai shift</span>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <span className="font-mono text-green-400">saldo</span>
+                    <span className="text-white/40 ml-1">penghasilan</span>
+                  </div>
+                  <div className="rounded-lg bg-white/5 px-3 py-2">
+                    <span className="font-mono text-green-400">status</span>
+                    <span className="text-white/40 ml-1">cek status</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-center text-white/30 text-xs">
+              Ketik <strong>checkin</strong> di WhatsApp untuk mulai terima orderan!
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-export default function DriverSignupPage() {
-  const [lang, setLang] = useState<Lang>("id");
-  const [selectedCityId, setSelectedCityId] = useState<LaunchCity["id"]>("jakarta");
-  const s = t[lang];
-  const selectedCity = launchCities.find((city) => city.id === selectedCityId) ?? launchCities[0];
+function QRCodeDisplay({ value }: { value: string }) {
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    import("qrcode").then((QRCode) => {
+      QRCode.toDataURL(value, {
+        width: 256,
+        margin: 0,
+        color: { dark: "#000000", light: "#ffffff" },
+      }).then(setImgSrc);
+    }).catch(() => setImgSrc(null));
+  }, [value]);
+
+  if (imgSrc) {
+    return <img src={imgSrc} alt="QR Code" className="w-64 h-64" />;
+  }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white relative">
-      <LangToggle lang={lang} setLang={setLang} />
-      <div className="mx-auto max-w-3xl px-4 py-16">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 rounded-full bg-green-500/10 border border-green-500/20 px-4 py-1.5 text-sm text-green-400 mb-6">
-            {s.badge}
-          </div>
-          <h1 className="text-4xl font-bold mb-4">{s.title}</h1>
-          <p className="text-white/50 text-lg">{s.sub}</p>
-        </div>
-
-        <div className="rounded-2xl border border-green-500/20 bg-gradient-to-br from-green-500/[0.08] to-transparent p-6 mb-10">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-xl font-semibold">{s.cityTitle}</h2>
-            <span className="text-xs text-white/50">{s.cityHint}</span>
-          </div>
-          <label className="block text-sm text-white/70 mb-2">{s.cityLabel}</label>
-          <select
-            value={selectedCityId}
-            onChange={(e) => setSelectedCityId(e.target.value as LaunchCity["id"])}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40"
-          >
-            {launchCities.map((city) => (
-              <option key={city.id} value={city.id} className="bg-[#0a0a0a]">{city.name}</option>
-            ))}
-          </select>
-          <p className="text-xs text-white/45 mt-3">{s.cityArea} {selectedCity.name}: {selectedCity.zones.join(", ")}.</p>
-        </div>
-
-        <div className="space-y-6 mb-12">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 text-sm font-bold">1</span>
-              <h2 className="text-xl font-semibold">Register</h2>
-            </div>
-            <pre className="rounded-xl bg-black/50 border border-white/10 p-4 text-sm text-green-400 overflow-x-auto">{`curl -X POST https://gojek-mvp.vercel.app/api/drivers/register/direct \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "fullName": "Agent Driver",
-    "phone": "081234567890",
-    "vehicleType": "motor",
-    "vehicleBrand": "Honda",
-    "vehicleModel": "Beat",
-    "vehiclePlate": "B 1234 XYZ",
-    "licenseNumber": "SIM-001",
-    "city": "${selectedCity.name}",
-    "operatingCity": "${selectedCity.name}"
-  }'`}</pre>
-            <p className="text-white/40 text-sm mt-3">
-              {s.response} <code className="text-green-400/70">{"{ driverId, apiToken }"}</code> {s.saveToken}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 text-sm font-bold">2</span>
-              <h2 className="text-xl font-semibold">{s.step2}</h2>
-            </div>
-            <pre className="rounded-xl bg-black/50 border border-white/10 p-4 text-sm text-green-400 overflow-x-auto">{`curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/subscribe \\
-  -H "Authorization: Bearer {apiToken}"`}</pre>
-            <p className="text-white/40 text-sm mt-3">{s.demo30}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500/20 text-green-400 text-sm font-bold">3</span>
-              <h2 className="text-xl font-semibold">{s.step3}</h2>
-            </div>
-            <pre className="rounded-xl bg-black/50 border border-white/10 p-4 text-sm text-green-400 overflow-x-auto">{`# Set availability
-curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/availability \\
-  -H "Authorization: Bearer {apiToken}" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "availability": "online" }'
-
-# Update location
-curl -X POST https://gojek-mvp.vercel.app/api/drivers/me/location \\
-  -H "Authorization: Bearer {apiToken}" \\
-  -H "Content-Type: application/json" \\
-  -d '{ "lat": -6.8915, "lng": 107.6107 }'`}</pre>
-            <p className="text-white/40 text-sm mt-3">{s.done}</p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center">
-          <h3 className="text-xl font-semibold mb-3">{s.docsTitle}</h3>
-          <p className="text-white/40 text-sm mb-6">{s.docsSub}</p>
-          <div className="rounded-xl bg-black/50 border border-white/10 p-4 mb-6 font-mono text-sm text-green-400 select-all cursor-pointer" onClick={() => { navigator.clipboard?.writeText("https://gojek-mvp.vercel.app/skill.md"); }}>
-            https://gojek-mvp.vercel.app/skill.md
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/skill.md"><Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">{s.readSkill}</Button></Link>
-            <Link href="/docs/driver-api"><Button variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">{s.apiDocs}</Button></Link>
-            <Link href="/landing"><Button variant="outline" className="border-white/10 text-white hover:bg-white/5 rounded-xl h-11 px-6 font-semibold w-full sm:w-auto">{s.landing}</Button></Link>
-          </div>
-        </div>
-
-        <div className="mt-12 text-center text-white/20 text-sm">{s.footer}</div>
-      </div>
+    <div className="w-64 h-64 flex items-center justify-center bg-gray-100 rounded">
+      <p className="text-gray-500 text-xs text-center px-4 break-all">{value.slice(0, 50)}...</p>
     </div>
   );
 }

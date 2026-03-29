@@ -26,6 +26,10 @@ import type * as subscription from "../subscription.js";
 import type * as waitlist from "../waitlist.js";
 import type * as webhooks from "../webhooks.js";
 import type * as whatsappState from "../whatsappState.js";
+import type * as driverSessions from "../driverSessions.js";
+import type * as passengerWhatsapp from "../passengerWhatsapp.js";
+import type * as waBot from "../waBot.js";
+import type * as adminSessions from "../adminSessions.js";
 
 import type {
   ApiFromModules,
@@ -52,6 +56,10 @@ declare const fullApi: ApiFromModules<{
   waitlist: typeof waitlist;
   webhooks: typeof webhooks;
   whatsappState: typeof whatsappState;
+  driverSessions: typeof driverSessions;
+  passengerWhatsapp: typeof passengerWhatsapp;
+  waBot: typeof waBot;
+  adminSessions: typeof adminSessions;
 }>;
 
 /**

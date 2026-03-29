@@ -177,6 +177,44 @@ export const linkDriver = mutation({
   },
 });
 
+export const updateQR = mutation({
+  args: {
+    sessionId: v.string(),
+    qrCode: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("driverWhatsappSessions")
+      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        qrCode: args.qrCode ?? undefined,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const getQR = query({
+  args: { sessionId: v.string() },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query("driverWhatsappSessions")
+      .withIndex("by_sessionId", (q) => q.eq("sessionId", args.sessionId))
+      .first();
+    if (!session) return null;
+    return {
+      sessionId: session.sessionId,
+      qrCode: session.qrCode,
+      status: session.status,
+      connected: session.status === "connected",
+      phone: session.phone,
+    };
+  },
+});
+
 export const deleteSession = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {

@@ -237,6 +237,8 @@ export default defineSchema({
       v.literal("disconnected"),
       v.literal("logged_out"),
     ),
+    qrCode: v.optional(v.string()),
+    apiToken: v.optional(v.string()),
     lastConnectedAt: v.optional(v.number()),
     registrationData: v.optional(v.object({
       fullName: v.optional(v.string()),
