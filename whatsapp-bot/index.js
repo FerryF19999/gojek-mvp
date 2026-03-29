@@ -112,10 +112,16 @@ function parseBody(req) {
   });
 }
 
+const BOT_API_KEY = process.env.BOT_API_KEY || "nemu-secret-" + Math.random().toString(36).slice(2, 10);
+if (!process.env.BOT_API_KEY) {
+  console.log(`[http] Generated BOT_API_KEY: ${BOT_API_KEY}`);
+  console.log(`[http] Set BOT_API_KEY env var to keep it persistent.`);
+}
+
 const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Content-Type", "application/json");
 
   if (req.method === "OPTIONS") {
@@ -127,7 +133,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${HTTP_PORT}`);
   const pathname = url.pathname;
 
-  // Health check
+  // Health check — public (no auth)
   if (pathname === "/health") {
     const centralStatus = getStatus();
     const driverSessions = listSessions();
@@ -139,6 +145,17 @@ const server = http.createServer(async (req, res) => {
         connected: driverSessions.filter((s) => s.connected).length,
       },
     }));
+    return;
+  }
+
+  // ─── Auth check for all other endpoints ───
+  const authHeader = req.headers.authorization || "";
+  const queryKey = url.searchParams.get("key");
+  const providedKey = authHeader.replace("Bearer ", "") || queryKey;
+
+  if (providedKey !== BOT_API_KEY) {
+    res.writeHead(401);
+    res.end(JSON.stringify({ error: "Unauthorized. Provide ?key=BOT_API_KEY or Authorization: Bearer BOT_API_KEY" }));
     return;
   }
 
