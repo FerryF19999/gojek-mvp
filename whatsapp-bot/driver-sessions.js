@@ -164,12 +164,13 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
 
         // Send welcome message
+        console.log(`[driver-sessions] Sending welcome to ${phoneNumber} (role=${sessionData.role})`);
         if (phoneNumber) {
           const jid = `${phoneNumber}@s.whatsapp.net`;
           const isDriver = sessionData.role === "driver";
           const { getDriverState } = require("./driver-handler");
           const driverState = getDriverState(sessionData.driverId);
-          const isRegistered = !!driverState.apiToken || !!existingToken;
+          const isRegistered = !!driverState.apiToken || !!savedMeta?.apiToken;
 
           let welcomeText;
           if (isDriver && isRegistered) {
