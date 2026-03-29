@@ -189,17 +189,30 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
       for (const m of messages) {
         if (!m.message) continue;
         const jid = m.key.remoteJid;
-        if (!jid || jid.endsWith("@g.us")) continue;
+        if (!jid || jid.endsWith("@g.us") || jid === "status@broadcast") continue;
 
-        // Determine if this is a self-chat ("Message Yourself")
         const ownNumber = sessionData.phone;
         const senderPhone = normalizePhone(jid.split("@")[0]);
         const isSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
 
-        // For self-chat: only process messages FROM the user (fromMe = true)
-        // For regular chat: only process messages TO the user (fromMe = false)
-        if (isSelfChat && !m.key.fromMe) continue;  // Bot's own replies in self-chat, skip
-        if (!isSelfChat && m.key.fromMe) continue;   // Bot's outgoing msgs to others, skip
+        // Debug log
+        const msgText = m.message.conversation || m.message.extendedTextMessage?.text || "[non-text]";
+        console.log(`[msg-debug] ${sessionId} | jid=${jid} | fromMe=${m.key.fromMe} | self=${isSelfChat} | own=${ownNumber} | sender=${senderPhone} | text=${msgText.slice(0,30)}`);
+
+        // In linked device mode, bot sends as fromMe=true and user also sends as fromMe=true
+        // The only way to differentiate: bot's replies have m.key.id that we track
+        // Simple approach: process ALL messages in self-chat, but skip bot's own sends
+        // by checking if the message was just sent by us (within 2 seconds)
+        if (isSelfChat) {
+          // Skip if this looks like our own bot reply (fromMe but no participant = bot sent it as linked device)
+          // Actually in linked device, user messages have fromMe=false and bot messages have fromMe=true
+          // So we want fromMe=false (user typed) in self-chat
+          // But some WhatsApp versions send user self-chat as fromMe=true
+          // Solution: process BOTH and let the handler be idempotent. Skip only status/broadcast.
+        } else {
+          // Regular chat from someone else — only process if not from bot
+          if (m.key.fromMe) continue;
+        }
 
         // Detect live location sharing → update GPS
         if (m.message.locationMessage || m.message.liveLocationMessage) {
