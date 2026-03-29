@@ -64,12 +64,12 @@ const T = {
   help:
     "🏍️ *Nemu Ojek Driver*\n\n" +
     "📋 Perintah:\n" +
-    "• *checkin* / *masuk* / *gas* — mulai shift\n" +
-    "• *checkout* / *keluar* / *selesai* — akhiri shift\n" +
-    "• *saldo* / *penghasilan* — cek pendapatan\n" +
-    "• *status* — cek status kamu\n" +
-    "• *terima* — ambil orderan\n" +
-    "• *tolak* — skip orderan\n" +
+    "• *checkin* / *masuk* — mulai shift\n" +
+    "• *checkout* / *keluar* — akhiri shift\n" +
+    "• *gps* — aktifkan GPS tracking\n" +
+    "• *saldo* — cek pendapatan\n" +
+    "• *status* — cek status\n" +
+    "• *terima* / *tolak* — respon orderan\n" +
     "• *help* — bantuan",
   greetOnline: [
     "Hai! 👋 Kamu lagi online. Ada yang bisa dibantu? Ketik *help* buat list perintah.",
@@ -130,6 +130,8 @@ function detectDriverIntent(text, state) {
   }
   // Check out
   if (/\b(checkout|check out|keluar|offline|selesai|stop|off|pulang|udahan|done)\b/.test(t)) return { intent: "checkout" };
+  // GPS
+  if (/\b(gps|lokasi|location|tracking|track)\b/.test(t)) return { intent: "gps" };
   // Accept ride
   if (/\b(terima|accept|ambil|iya|ya|y|ok|oke|yoi|mau|sikat|hajar|gw ambil)\b/.test(t)) {
     if (state.status === "waiting_ride") return { intent: "accept" };
@@ -273,6 +275,20 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
 
     case "status":
       await sendReply(sock, jid, T.status(state.status, state.currentRideCode));
+      return;
+
+    case "gps":
+      if (!state.apiToken) {
+        await sendReply(sock, jid, "Daftar dulu ya sebelum aktifin GPS. Ketik *daftar*.");
+        return;
+      }
+      const appUrl = process.env.NEMU_APP_URL || "https://gojek-mvp.vercel.app";
+      await sendReply(sock, jid,
+        `📍 *Aktifkan GPS Tracking*\n\n` +
+        `Buka link ini di browser HP kamu:\n` +
+        `${appUrl}/driver-gps?token=${state.apiToken}\n\n` +
+        `Lokasi kamu akan terupdate otomatis tiap 2 detik ke sistem Nemu Ojek.`
+      );
       return;
 
     case "checkin":
