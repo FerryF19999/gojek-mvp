@@ -157,6 +157,27 @@ export default function RidePage() {
       });
       setStep("searching");
 
+      // Send WhatsApp notification to passenger
+      if (customerPhone && customerPhone !== "000") {
+        const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "http://localhost:3001";
+        const botKey = process.env.NEXT_PUBLIC_BOT_API_KEY || "";
+        const trackUrl = `${window.location.origin}/track/${rideCode}`;
+        fetch(`${botUrl}/send-message?key=${botKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: customerPhone,
+            message:
+              `✅ Ride *${rideCode}* dibuat!\n\n` +
+              `📍 Jemput: ${pickup.address}\n` +
+              `🏁 Tujuan: ${destination.address}\n` +
+              `💰 Rp ${formatIdr(price)}\n\n` +
+              `🔍 Lagi cariin driver...\n` +
+              `📍 Track: ${trackUrl}`,
+          }),
+        }).catch(() => {}); // Fire and forget
+      }
+
       // Start polling for ride status
       pollRef.current = setInterval(async () => {
         try {
