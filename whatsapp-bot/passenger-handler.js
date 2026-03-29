@@ -162,8 +162,9 @@ function detectIntent(text, session) {
     return { intent: "destination", destination: t };
   }
 
-  // If IDLE and text looks like a place name (2+ chars, not a question), treat as destination
-  if ((!session?.state || session?.state === "IDLE") && t.length >= 3 && !t.includes("?") && !/^\d+$/.test(t)) {
+  // If IDLE and text looks like a place name (3+ chars, not a command/keyword), treat as destination
+  const KEYWORDS = /^(ojek|pesan|pesen|order|ride|mau|pengen|butuh|cari|booking|halo|hai|hi|hello|hey|help|bantuan|batal|cancel|status|ya|tidak|ok|oke|gas)$/i;
+  if ((!session?.state || session?.state === "IDLE") && t.length >= 3 && !t.includes("?") && !/^\d+$/.test(t) && !KEYWORDS.test(t)) {
     return { intent: "book_direct", destination: t };
   }
 

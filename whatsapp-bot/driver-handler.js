@@ -111,11 +111,48 @@ function setState(driverId, patch) {
   Object.assign(s, patch);
 }
 
+function saveDriverStatus(driverId, status) {
+  try {
+    const path = require("path");
+    const fs = require("fs");
+    const metaFile = path.join(__dirname, "driver-auths", driverId, "_meta.json");
+    if (fs.existsSync(metaFile)) {
+      const meta = JSON.parse(fs.readFileSync(metaFile, "utf-8"));
+      meta.driverStatus = status;
+      fs.writeFileSync(metaFile, JSON.stringify(meta, null, 2));
+    }
+  } catch {}
+}
+
+function loadDriverStatus(driverId) {
+  try {
+    const path = require("path");
+    const fs = require("fs");
+    const metaFile = path.join(__dirname, "driver-auths", driverId, "_meta.json");
+    if (fs.existsSync(metaFile)) {
+      const meta = JSON.parse(fs.readFileSync(metaFile, "utf-8"));
+      return meta.driverStatus || null;
+    }
+  } catch {}
+  return null;
+}
+
 function initDriverState(driverId, apiToken, name) {
   const existing = driverStates.get(driverId);
   // Don't overwrite registration data if mid-registration
   if (existing && existing.regStep) return;
-  setState(driverId, { apiToken, name, status: "checked_out", pendingRideCode: null, currentRideCode: null });
+  // Don't reset status if driver is already checked_in — they stay online until they checkout
+  const currentStatus = existing?.status;
+  const savedStatus = loadDriverStatus(driverId);
+  const effectiveStatus = currentStatus || savedStatus || "checked_out";
+  const keepStatus = ["checked_in", "on_ride", "waiting_ride"].includes(effectiveStatus);
+  setState(driverId, {
+    apiToken: apiToken || existing?.apiToken,
+    name: name || existing?.name,
+    status: keepStatus ? effectiveStatus : "checked_out",
+    pendingRideCode: existing?.pendingRideCode || null,
+    currentRideCode: existing?.currentRideCode || null,
+  });
 }
 
 // ─── Fuzzy Intent ───
@@ -332,8 +369,10 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
       try {
         const prevStatus = state.status;
         setState(driverId, { status: "checked_in" });
+        saveDriverStatus(driverId, "checked_in");
         await setDriverAvailability(state.apiToken, "online").catch((e) => {
-          setState(driverId, { status: prevStatus }); // Rollback
+          setState(driverId, { status: prevStatus });
+          saveDriverStatus(driverId, prevStatus);
           throw e;
         });
         let earnings = null;
@@ -353,8 +392,10 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
       try {
         const prevStatus = state.status;
         setState(driverId, { status: "checked_out", pendingRideCode: null });
+        saveDriverStatus(driverId, "checked_out");
         await setDriverAvailability(state.apiToken, "offline").catch((e) => {
-          setState(driverId, { status: prevStatus }); // Rollback
+          setState(driverId, { status: prevStatus });
+          saveDriverStatus(driverId, prevStatus);
           throw e;
         });
         await sendReply(sock, jid, pick(T.checkedOut));

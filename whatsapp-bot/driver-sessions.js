@@ -331,6 +331,12 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
                   }
                 })
                 .catch((e) => console.warn(`[driver-gps] ${sessionId} location update failed:`, e.message));
+            } else if (sessionData.role === "passenger") {
+              // For passengers, location share = set pickup, handle in passenger handler
+              const { handlePassenger } = require("./passenger-handler");
+              const { readSession } = require("./utils");
+              const pSession = readSession(senderPhone);
+              await handlePassenger(sock, jid, senderPhone, pSession, "", loc);
             } else {
               sendBotReply(sock, jid, "📍 Lokasi diterima, tapi kamu belum terdaftar. Ketik *daftar* dulu ya.").catch(() => {});
             }

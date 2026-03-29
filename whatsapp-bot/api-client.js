@@ -142,13 +142,21 @@ async function fetchJson(pathname) {
 }
 
 async function geocodeAddress(address, nearLat, nearLng) {
-  // Add city context if we have a nearby location
   let query = address;
+
   if (nearLat && nearLng) {
-    // Bias search to area near pickup
-    const encoded = encodeURIComponent(query);
+    // Detect city from coordinates for context
+    let cityName = "";
+    if (nearLat > -6.95 && nearLat < -6.82 && nearLng > 107.5 && nearLng < 107.72) cityName = "Bandung";
+    else if (nearLat > -6.4 && nearLat < -6.1 && nearLng > 106.6 && nearLng < 107.0) cityName = "Jakarta";
+    else if (nearLat > -7.35 && nearLat < -7.2 && nearLng > 112.65 && nearLng < 112.85) cityName = "Surabaya";
+
+    // Search with city context + viewbox bias (0.5 degree ~ 55km radius)
+    const searchQuery = cityName ? `${query} ${cityName}` : query;
+    const encoded = encodeURIComponent(searchQuery);
+    const vb = `${nearLng-0.5},${nearLat+0.5},${nearLng+0.5},${nearLat-0.5}`;
     const res = await safeFetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=3&viewbox=${nearLng-0.2},${nearLat-0.2},${nearLng+0.2},${nearLat+0.2}&bounded=1`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=3&viewbox=${vb}&bounded=0`,
       { headers: { "User-Agent": "NemuOjek/1.0" } }
     );
     if (res.ok) {
@@ -161,7 +169,6 @@ async function geocodeAddress(address, nearLat, nearLng) {
         };
       }
     }
-    // Fallback: add "Bandung"/"Jakarta" context from reverse geocode
   }
 
   // Fallback: simple search with Indonesia context
