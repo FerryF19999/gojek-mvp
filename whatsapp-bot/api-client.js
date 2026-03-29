@@ -4,35 +4,59 @@
  */
 
 const API_BASE = process.env.NEMU_API_BASE || "https://gojek-mvp.vercel.app/api";
+const FETCH_TIMEOUT_MS = 10000;
+
+/**
+ * fetch with timeout + safe JSON parsing
+ */
+async function safeFetch(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function safeJson(res) {
+  try {
+    return await res.json();
+  } catch {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Invalid JSON response: ${text.slice(0, 100)}`);
+  }
+}
 
 async function createRideAPI(payload) {
-  const res = await fetch(`${API_BASE}/rides/create`, {
+  const res = await safeFetch(`${API_BASE}/rides/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Create ride failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function getRideStatus(rideCode) {
-  const res = await fetch(`${API_BASE}/rides/${encodeURIComponent(rideCode)}`);
+  const res = await safeFetch(`${API_BASE}/rides/${encodeURIComponent(rideCode)}`);
   if (!res.ok) throw new Error(`Status check failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function submitRideRating(rideCode, rating) {
-  const res = await fetch(`${API_BASE}/rides/${encodeURIComponent(rideCode)}/rating`, {
+  const res = await safeFetch(`${API_BASE}/rides/${encodeURIComponent(rideCode)}/rating`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ rating }),
   });
   if (!res.ok) throw new Error(`Rating submit failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function registerDriver(phone, fullName, plate, city) {
-  const res = await fetch(`${API_BASE}/drivers/register/direct`, {
+  const res = await safeFetch(`${API_BASE}/drivers/register/direct`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -47,11 +71,11 @@ async function registerDriver(phone, fullName, plate, city) {
     }),
   });
   if (!res.ok) throw new Error(`Driver register failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function setDriverAvailability(token, availability) {
-  const res = await fetch(`${API_BASE}/drivers/me/availability`, {
+  const res = await safeFetch(`${API_BASE}/drivers/me/availability`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,19 +84,19 @@ async function setDriverAvailability(token, availability) {
     body: JSON.stringify({ availability }),
   });
   if (!res.ok) throw new Error(`Set availability failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function getDriverProfile(token) {
-  const res = await fetch(`${API_BASE}/drivers/me`, {
+  const res = await safeFetch(`${API_BASE}/drivers/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Get profile failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function getDriverRides(token) {
-  const res = await fetch(`${API_BASE}/drivers/me/rides`, {
+  const res = await safeFetch(`${API_BASE}/drivers/me/rides`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Get driver rides failed (${res.status})`);
@@ -81,11 +105,11 @@ async function getDriverRides(token) {
 }
 
 async function getDriverEarnings(token) {
-  const res = await fetch(`${API_BASE}/drivers/me/earnings`, {
+  const res = await safeFetch(`${API_BASE}/drivers/me/earnings`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Get earnings failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function driverRespondRide(token, rideCode, action) {
@@ -95,11 +119,11 @@ async function driverRespondRide(token, rideCode, action) {
     { method: "POST", headers: { Authorization: `Bearer ${token}` } }
   );
   if (!res.ok) throw new Error(`${endpoint} ride failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function updateDriverLocation(token, lat, lng) {
-  const res = await fetch(`${API_BASE}/drivers/me/location`, {
+  const res = await safeFetch(`${API_BASE}/drivers/me/location`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -108,18 +132,18 @@ async function updateDriverLocation(token, lat, lng) {
     body: JSON.stringify({ lat, lng }),
   });
   if (!res.ok) throw new Error(`Update location failed (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function fetchJson(pathname) {
   const res = await fetch(`${API_BASE}${pathname}`);
   if (!res.ok) throw new Error(`API failed ${pathname} (${res.status})`);
-  return res.json();
+  return safeJson(res);
 }
 
 async function geocodeAddress(address) {
   const encoded = encodeURIComponent(address + " Indonesia");
-  const res = await fetch(
+  const res = await safeFetch(
     `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1`,
     { headers: { "User-Agent": "NemuOjek/1.0" } }
   );
@@ -134,7 +158,7 @@ async function geocodeAddress(address) {
 }
 
 async function reverseGeocode(lat, lng) {
-  const res = await fetch(
+  const res = await safeFetch(
     `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
     { headers: { "User-Agent": "NemuOjek/1.0" } }
   );

@@ -110,6 +110,10 @@ async function pollDispatch() {
     }
   } catch (e) {
     console.warn("[dispatch] poll error:", e.message);
+    try {
+      const adminNotify = require("./agents/admin-notify");
+      adminNotify.warn(`Dispatch poll error: ${e.message.slice(0, 150)}`, "dispatch_error");
+    } catch {}
   }
 }
 
@@ -348,6 +352,24 @@ async function main() {
   console.log(`   AI Agent: ${require("./agents/llm-provider").isAvailable() ? "active" : "rule-based (no API key)"}`);
   console.log(`   HTTP API: http://localhost:${HTTP_PORT}`);
 }
+
+// ─── Global Error Handlers ───
+process.on("unhandledRejection", (err) => {
+  console.error("[FATAL] Unhandled rejection:", err);
+  try {
+    const adminNotify = require("./agents/admin-notify");
+    adminNotify.error(`Unhandled rejection: ${String(err).slice(0, 200)}`, "unhandled_rejection");
+  } catch {}
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught exception:", err);
+  try {
+    const adminNotify = require("./agents/admin-notify");
+    adminNotify.error(`Uncaught exception: ${err.message?.slice(0, 200)}`, "uncaught_exception");
+  } catch {}
+  // Don't exit — PM2 will restart if needed
+});
 
 main().catch((err) => {
   console.error("Fatal error:", err);

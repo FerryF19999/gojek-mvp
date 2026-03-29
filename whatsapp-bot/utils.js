@@ -195,10 +195,14 @@ async function sendReply(sock, jid, text) {
       const waitForRate = Math.max(0, PER_NUMBER_MIN_INTERVAL_MS - (now() - rate.lastSentAt));
       const waitMs = Math.max(REPLY_DELAY_MS, waitForRate);
       if (waitMs > 0) await sleep(waitMs);
-      await sock.sendMessage(jid, { text });
-      rate.lastSentAt = now();
-      sendRateState.set(phone, rate);
-      logLine("OUT", phone, text);
+      try {
+        await sock.sendMessage(jid, { text });
+        rate.lastSentAt = now();
+        sendRateState.set(phone, rate);
+        logLine("OUT", phone, text);
+      } catch (e) {
+        console.error(`[sendReply] Failed to send to ${phone}:`, e.message);
+      }
     });
   await globalSendQueue;
 }

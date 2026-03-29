@@ -327,11 +327,15 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
         await sendReply(sock, jid, "Selesaikan orderan dulu ya 🙏"); return;
       }
       if (!state.apiToken) {
-        await sendReply(sock, jid, "⚠️ Akun driver belum terdaftar. Coba lagi atau hubungi admin."); return;
+        await sendReply(sock, jid, "⚠️ Akun driver belum terdaftar. Ketik *daftar* untuk registrasi."); return;
       }
       try {
-        await setDriverAvailability(state.apiToken, "online");
+        const prevStatus = state.status;
         setState(driverId, { status: "checked_in" });
+        await setDriverAvailability(state.apiToken, "online").catch((e) => {
+          setState(driverId, { status: prevStatus }); // Rollback
+          throw e;
+        });
         let earnings = null;
         try { earnings = await getDriverEarnings(state.apiToken); } catch {}
         await sendReply(sock, jid, T.checkedIn(earnings, state.apiToken));
@@ -347,8 +351,12 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
       }
       if (state.status === "checked_out") { await sendReply(sock, jid, T.alreadyOffline); return; }
       try {
-        await setDriverAvailability(state.apiToken, "offline");
+        const prevStatus = state.status;
         setState(driverId, { status: "checked_out", pendingRideCode: null });
+        await setDriverAvailability(state.apiToken, "offline").catch((e) => {
+          setState(driverId, { status: prevStatus }); // Rollback
+          throw e;
+        });
         await sendReply(sock, jid, pick(T.checkedOut));
       } catch (e) {
         console.error("[driver] checkout failed:", e.message);
