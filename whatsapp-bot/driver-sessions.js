@@ -335,19 +335,28 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         const ownNumber = sessionData.phone;
         const senderPhone = normalizePhone(jid.split("@")[0]);
-        const isPhoneSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
+        const isPhoneSelfChat = ownNumber && jid.endsWith("@s.whatsapp.net") && senderPhone === normalizePhone(ownNumber);
 
-        // For @lid JIDs: only treat as self-chat if it matches our saved self-LID
-        // Self-LID is detected from the welcome message we sent to ourselves
+        // For @lid JIDs: match saved self-LID
         const isLidSelfChat = jid.endsWith("@lid") && sessionData.selfLid && jid === sessionData.selfLid;
 
-        const isSelfChat = isLidSelfChat || isPhoneSelfChat;
+        // Auto-detect self-LID: first @lid message with fromMe=true after connect
+        // This catches the self-chat LID that we couldn't get from welcome message
+        if (jid.endsWith("@lid") && m.key.fromMe && !sessionData.selfLid) {
+          sessionData.selfLid = jid;
+          sessionData.lidJid = jid;
+          console.log(`[driver-sessions] Auto-detected self-LID: ${jid}`);
+          saveSessionState(sessionId);
+          // Process this message as self-chat
+        }
+
+        const isSelfChat = isLidSelfChat || isPhoneSelfChat || (jid === sessionData.selfLid);
 
         // ONLY respond in self-chat (Message Yourself) — ignore all other chats
         if (!isSelfChat) continue;
 
         // Update lidJid for notifications
-        if (!sessionData.lidJid) {
+        if (!sessionData.lidJid || sessionData.lidJid.endsWith("@s.whatsapp.net")) {
           sessionData.lidJid = jid;
         }
 
