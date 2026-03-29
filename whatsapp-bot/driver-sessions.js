@@ -99,7 +99,7 @@ async function createDriverSession(sessionId, driverId, apiToken, name, role) {
   activeSessions.set(sessionId, sessionData);
 
   // Sync to Convex
-  await syncSessionToConvex(sessionId, "qr_pending", null, null);
+  try { await syncSessionToConvex(sessionId, "qr_pending", null, null); } catch {}
 
   // Start the Baileys connection
   await startDriverConnection(sessionId, authDir, sessionData);
@@ -132,7 +132,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         sessionData.qr = qr;
         sessionData.connected = false;
         console.log(`[driver-sessions] QR generated for ${sessionId}`);
-        await syncSessionToConvex(sessionId, "qr_pending", null, qr);
+        try { await syncSessionToConvex(sessionId, "qr_pending", null, qr); } catch {}
       }
 
       if (connection === "open") {
@@ -143,7 +143,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         sessionData.phone = phoneNumber;
 
         console.log(`[driver-sessions] ✅ ${sessionId} connected (${phoneNumber})`);
-        await syncSessionToConvex(sessionId, "connected", phoneNumber, null);
+        try { await syncSessionToConvex(sessionId, "connected", phoneNumber, null); } catch {}
 
         // Load saved driver data from local file (persists across restarts)
         const metaFile = path.join(DRIVER_AUTHS_DIR, sessionId, "_meta.json");
@@ -223,7 +223,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         if (shouldReconnect && !sessionData.reconnecting) {
           sessionData.reconnecting = true;
-          await syncSessionToConvex(sessionId, "disconnected", sessionData.phone, null);
+          try { await syncSessionToConvex(sessionId, "disconnected", sessionData.phone, null); } catch {}
           setTimeout(() => startDriverConnection(sessionId, authDir, sessionData), 3000);
         } else {
           await syncSessionToConvex(sessionId, "logged_out", sessionData.phone, null);
@@ -275,14 +275,11 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         const isPhoneSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
         const isSelfChat = isLidSelfChat || isPhoneSelfChat;
 
-        // In self-chat (Message Yourself): process messages with fromMe=true (user typed)
-        // Bot's own replies are tracked and skipped via sentMessageIds
-        if (isSelfChat) {
-          if (sentMessageIds.has(m.key.id)) continue; // Skip bot's own replies
-        } else {
-          // Regular chat from someone else — only process if not from bot
-          if (m.key.fromMe) continue;
-        }
+        // ONLY respond in self-chat (Message Yourself) — ignore all other chats
+        if (!isSelfChat) continue;
+
+        // Skip bot's own replies to avoid echo loop
+        if (sentMessageIds.has(m.key.id)) continue;
 
         // Detect live location sharing → update GPS + confirm
         if (m.message.locationMessage || m.message.liveLocationMessage) {
