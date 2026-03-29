@@ -3,19 +3,28 @@
  * Used ONLY by the Main Agent orchestrator, not by chat bots
  */
 
-const LLM_PROVIDER = process.env.LLM_PROVIDER || "anthropic";
-const LLM_MODEL = process.env.LLM_MODEL || (LLM_PROVIDER === "openai" ? "gpt-4o" : "claude-sonnet-4-20250514");
+const LLM_PROVIDER = process.env.LLM_PROVIDER || "groq";
+const LLM_MODEL = process.env.LLM_MODEL || ({
+  groq: "llama-3.3-70b-versatile",
+  openai: "gpt-4o",
+  anthropic: "claude-sonnet-4-20250514",
+}[LLM_PROVIDER] || "llama-3.3-70b-versatile");
 const LLM_TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS || "8000");
 
 let anthropicClient = null;
 let openaiClient = null;
+let groqClient = null;
 
 function getAnthropicClient() {
   if (!anthropicClient) {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return null;
     const Anthropic = require("@anthropic-ai/sdk");
-    anthropicClient = new Anthropic({ apiKey: key });
+    // Support both standard API keys (sk-ant-api03-) and OAuth tokens (sk-ant-oat01-)
+    const isOAuth = key.startsWith("sk-ant-oat01-");
+    anthropicClient = isOAuth
+      ? new Anthropic({ authToken: key })
+      : new Anthropic({ apiKey: key });
   }
   return anthropicClient;
 }
@@ -30,10 +39,25 @@ function getOpenAIClient() {
   return openaiClient;
 }
 
+function getGroqClient() {
+  if (!groqClient) {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) return null;
+    const OpenAI = require("openai");
+    // Groq uses OpenAI-compatible API
+    groqClient = new OpenAI({
+      apiKey: key,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+  }
+  return groqClient;
+}
+
 /**
  * Check if LLM is available (API key configured)
  */
 function isAvailable() {
+  if (LLM_PROVIDER === "groq") return !!process.env.GROQ_API_KEY;
   if (LLM_PROVIDER === "openai") return !!process.env.OPENAI_API_KEY;
   return !!process.env.ANTHROPIC_API_KEY;
 }
@@ -69,6 +93,9 @@ async function chat(systemPrompt, messages, tools = []) {
   const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
 
   try {
+    if (LLM_PROVIDER === "groq") {
+      return await chatGroq(systemPrompt, messages, tools, controller.signal);
+    }
     if (LLM_PROVIDER === "openai") {
       return await chatOpenAI(systemPrompt, messages, tools, controller.signal);
     }
@@ -108,6 +135,38 @@ async function chatAnthropic(systemPrompt, messages, tools, signal) {
   }
 
   return { text, toolCalls, stopReason: response.stop_reason };
+}
+
+async function chatGroq(systemPrompt, messages, tools, signal) {
+  const client = getGroqClient();
+  if (!client) throw new Error("Groq API key not configured");
+
+  const formattedTools = tools.length > 0 ? formatToolsForOpenAI(tools) : undefined;
+
+  const response = await client.chat.completions.create({
+    model: LLM_MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages.map((m) => {
+        if (m.role === "tool") {
+          return { role: "tool", tool_call_id: m.tool_use_id, content: m.content };
+        }
+        return { role: m.role, content: m.content };
+      }),
+    ],
+    tools: formattedTools,
+    max_tokens: 1024,
+  }, { signal });
+
+  const choice = response.choices[0];
+  const text = choice.message.content || "";
+  const toolCalls = (choice.message.tool_calls || []).map((tc) => ({
+    id: tc.id,
+    name: tc.function.name,
+    args: JSON.parse(tc.function.arguments),
+  }));
+
+  return { text, toolCalls, stopReason: choice.finish_reason };
 }
 
 async function chatOpenAI(systemPrompt, messages, tools, signal) {
