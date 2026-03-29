@@ -66,25 +66,16 @@ async function fallbackDispatch() {
       // Get nearest drivers
       const suggestions = await convexClient.query("dispatch:dispatchSuggestions", {
         rideId: ride._id,
-        pickupLat: ride.pickup.lat,
-        pickupLng: ride.pickup.lng,
-        vehicleType: ride.vehicleType,
       });
 
-      if (suggestions.drivers?.length > 0) {
-        const best = suggestions.drivers[0];
+      const driverList = suggestions.suggestions || suggestions.drivers || [];
+      if (driverList.length > 0) {
+        const best = driverList[0];
         try {
           await convexClient.mutation("rides:assignDriver", {
             rideId: ride._id,
             driverId: best.driverId,
-          });
-          await convexClient.mutation("agentActions:log", {
-            rideId: ride._id,
-            agentName: "dispatch_agent",
-            actionType: "fallback_assign",
-            input: JSON.stringify({ driverId: best.driverId, distance: best.distanceKm }),
-            output: JSON.stringify({ reason: "Rule-based fallback: nearest driver" }),
-            approvedBy: "system-fallback",
+            assignedBy: "bot-dispatch",
           });
           console.log(`[main-agent] Fallback assigned ${best.driverId} to ${ride.code}`);
         } catch (e) {
