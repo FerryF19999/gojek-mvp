@@ -184,6 +184,13 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
     // Handle incoming messages on the driver's personal bot
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
+      // Log ALL messages before any filtering
+      for (const m of messages) {
+        const jid = m.key.remoteJid || "none";
+        const txt = m.message?.conversation || m.message?.extendedTextMessage?.text || "[no-text]";
+        console.log(`[RAW-MSG] ${sessionId} | type=${type} | jid=${jid} | fromMe=${m.key.fromMe} | participant=${m.key.participant || "none"} | hasMsg=${!!m.message} | text=${txt.slice(0,30)}`);
+      }
+
       if (type !== "notify") return;
 
       for (const m of messages) {
