@@ -206,9 +206,35 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
               `Aku akan cariin driver terdekat dan kasih estimasi harga. Yuk coba!`;
           }
           try {
-            await sendBotReply(sock, jid, welcomeText);
+            const sent = await sendBotReply(sock, jid, welcomeText);
+            // Detect self-LID from the sent message's JID
+            // Welcome goes to phone@s.whatsapp.net but Baileys may resolve to LID
+            if (sent?.key?.remoteJid?.endsWith("@lid")) {
+              sessionData.selfLid = sent.key.remoteJid;
+              console.log(`[driver-sessions] Self-LID detected from welcome: ${sessionData.selfLid}`);
+            }
           } catch (e) {
             console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
+          }
+
+          // If we didn't get self-LID from welcome, listen for the first @lid message
+          // that appears right after welcome (user's reply or echo)
+          if (!sessionData.selfLid) {
+            const detectSelfLid = ({ messages: msgs }) => {
+              for (const msg of msgs) {
+                const rid = msg.key?.remoteJid;
+                if (rid?.endsWith("@lid") && msg.key?.fromMe) {
+                  sessionData.selfLid = rid;
+                  sessionData.lidJid = rid;
+                  console.log(`[driver-sessions] Self-LID detected from echo: ${rid}`);
+                  sock.ev.off("messages.upsert", detectSelfLid);
+                  break;
+                }
+              }
+            };
+            sock.ev.on("messages.upsert", detectSelfLid);
+            // Auto-remove listener after 30 seconds
+            setTimeout(() => sock.ev.off("messages.upsert", detectSelfLid), 30000);
           }
         }
       }
@@ -270,17 +296,20 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         const ownNumber = sessionData.phone;
         const senderPhone = normalizePhone(jid.split("@")[0]);
-        const isLidSelfChat = jid.endsWith("@lid") && m.key.fromMe;
         const isPhoneSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
+
+        // For @lid JIDs: only treat as self-chat if it matches our saved self-LID
+        // Self-LID is detected from the welcome message we sent to ourselves
+        const isLidSelfChat = jid.endsWith("@lid") && sessionData.selfLid && jid === sessionData.selfLid;
+
         const isSelfChat = isLidSelfChat || isPhoneSelfChat;
 
         // ONLY respond in self-chat (Message Yourself) — ignore all other chats
         if (!isSelfChat) continue;
 
-        // Save LID jid for sending notifications later
-        if (jid.endsWith("@lid") && !sessionData.lidJid) {
+        // Update lidJid for notifications
+        if (!sessionData.lidJid) {
           sessionData.lidJid = jid;
-          console.log(`[driver-sessions] Saved LID jid for ${sessionId}: ${jid}`);
         }
 
         // Skip bot's own replies to avoid echo loop
