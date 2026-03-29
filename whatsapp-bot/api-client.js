@@ -141,14 +141,37 @@ async function fetchJson(pathname) {
   return safeJson(res);
 }
 
-async function geocodeAddress(address) {
-  const encoded = encodeURIComponent(address + " Indonesia");
+async function geocodeAddress(address, nearLat, nearLng) {
+  // Add city context if we have a nearby location
+  let query = address;
+  if (nearLat && nearLng) {
+    // Bias search to area near pickup
+    const encoded = encodeURIComponent(query);
+    const res = await safeFetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=3&viewbox=${nearLng-0.2},${nearLat-0.2},${nearLng+0.2},${nearLat+0.2}&bounded=1`,
+      { headers: { "User-Agent": "NemuOjek/1.0" } }
+    );
+    if (res.ok) {
+      const results = await safeJson(res).catch(() => []);
+      if (results.length) {
+        return {
+          lat: parseFloat(results[0].lat),
+          lng: parseFloat(results[0].lon),
+          displayName: results[0].display_name,
+        };
+      }
+    }
+    // Fallback: add "Bandung"/"Jakarta" context from reverse geocode
+  }
+
+  // Fallback: simple search with Indonesia context
+  const encoded = encodeURIComponent(query + " Indonesia");
   const res = await safeFetch(
     `https://nominatim.openstreetmap.org/search?format=json&q=${encoded}&limit=1`,
     { headers: { "User-Agent": "NemuOjek/1.0" } }
   );
   if (!res.ok) return null;
-  const results = await res.json();
+  const results = await safeJson(res).catch(() => []);
   if (!results.length) return null;
   return {
     lat: parseFloat(results[0].lat),

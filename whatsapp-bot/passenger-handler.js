@@ -96,7 +96,7 @@ function detectIntent(text, session) {
   }
 
   // Cancel
-  if (/\b(cancel|batal|gajadi|ga jadi|gak jadi)\b/.test(t)) return { intent: "cancel" };
+  if (/\b(cancel|batal|gajadi|ga jadi|gak jadi|jangan|stop|udahan|nggak jadi|batalin)\b/.test(t)) return { intent: "cancel" };
 
   // Track / where driver
   if (/\b(track|lacak|dimana driver|driver dimana|posisi driver|eta)\b/.test(t)) return { intent: "track" };
@@ -379,7 +379,8 @@ async function processDestination(sock, jid, phone, session, destText, priceChec
   let destLat, destLng;
 
   try {
-    const geo = await geocodeAddress(destText);
+    // Pass pickup coords as context for better geocoding (search near pickup area)
+    const geo = await geocodeAddress(destText, session.data.pickupLat, session.data.pickupLng);
     if (geo) {
       destLat = geo.lat;
       destLng = geo.lng;
