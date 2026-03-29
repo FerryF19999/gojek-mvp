@@ -127,6 +127,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
+      console.log(`[driver-sessions] ${sessionId} connection.update: ${connection || "none"} qr=${!!qr}`);
       if (qr) {
         sessionData.qr = qr;
         sessionData.connected = false;
@@ -164,8 +165,9 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
 
         // Send welcome message
-        console.log(`[driver-sessions] Sending welcome to ${phoneNumber} (role=${sessionData.role})`);
-        if (phoneNumber) {
+        console.log(`[driver-sessions] Sending welcome to ${phoneNumber} (role=${sessionData.role}, welcomed=${sessionData._welcomed})`);
+        if (phoneNumber && !sessionData._welcomed) {
+          sessionData._welcomed = true;
           const jid = `${phoneNumber}@s.whatsapp.net`;
           const isDriver = sessionData.role === "driver";
           const { getDriverState } = require("./driver-handler");
