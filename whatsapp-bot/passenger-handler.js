@@ -277,8 +277,22 @@ async function handlePassenger(sock, jid, phone, session, msg, locationMsg) {
     session.data.pickup = msg;
     try {
       const geo = await geocodeAddress(msg);
-      if (geo) { session.data.pickupLat = geo.lat; session.data.pickupLng = geo.lng; }
+      if (geo) {
+        session.data.pickupLat = geo.lat;
+        session.data.pickupLng = geo.lng;
+        session.data.pickup = geo.displayName.split(",").slice(0, 2).join(",").trim();
+      }
     } catch {}
+
+    // If there's a pending destination (from "gas ke X" before pickup was set), continue to it
+    if (session.data.pendingDestination) {
+      const dest = session.data.pendingDestination;
+      delete session.data.pendingDestination;
+      session.state = "ASK_DESTINATION";
+      writeSession(phone, session);
+      return await processDestination(sock, jid, phone, session, dest);
+    }
+
     session.state = "ASK_DESTINATION";
     writeSession(phone, session);
     await sendReply(sock, jid, pick(T.askDest));
@@ -298,14 +312,20 @@ async function handlePassenger(sock, jid, phone, session, msg, locationMsg) {
 
   // Direct book: "gas ke blok m"
   if (intent.intent === "book_direct") {
-    session.state = "ASK_DESTINATION";
     session.data = { ...session.data, name: session.data?.name || phone };
-    // If we don't have pickup, use pseudo or ask
+    // If no pickup location yet, save destination and ask for pickup first
     if (!session.data.pickupLat) {
-      session.data.pickup = "Jakarta";
-      session.data.pickupLat = -6.2088;
-      session.data.pickupLng = 106.8456;
+      session.data.pendingDestination = intent.destination;
+      session.state = "ASK_PICKUP";
+      writeSession(phone, session);
+      await sendReply(sock, jid,
+        `Oke, mau ke *${intent.destination}*! 📍\n\n` +
+        `Kamu sekarang di mana? Share *lokasi* kamu atau ketik alamat jemput.\n` +
+        `(contoh: Dago, Pasteur, Jl. Merdeka)`
+      );
+      return;
     }
+    session.state = "ASK_DESTINATION";
     writeSession(phone, session);
     return await processDestination(sock, jid, phone, session, intent.destination);
   }
