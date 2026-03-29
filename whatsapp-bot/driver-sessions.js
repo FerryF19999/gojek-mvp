@@ -369,20 +369,22 @@ function getDriverSocket(driverId) {
  * Restore sessions from Convex on startup
  */
 async function restoreSessions() {
-  if (!convexClient) return;
-
+  // Restore from local auth directories (no Convex dependency)
   try {
-    const sessions = await convexClient.query("driverSessions:listAll");
-    for (const s of sessions) {
-      if (s.status === "logged_out") continue;
-      if (activeSessions.has(s.sessionId)) continue;
+    const dirs = fs.readdirSync(DRIVER_AUTHS_DIR).filter((d) => {
+      const authPath = path.join(DRIVER_AUTHS_DIR, d);
+      return fs.statSync(authPath).isDirectory() && fs.readdirSync(authPath).length > 0;
+    });
 
-      const authDir = path.join(DRIVER_AUTHS_DIR, s.sessionId);
-      if (!fs.existsSync(authDir)) continue;
-
-      console.log(`[driver-sessions] Restoring session ${s.sessionId}...`);
-      await createDriverSession(s.sessionId, s.driverId, null, null);
+    for (const sessionId of dirs) {
+      if (activeSessions.has(sessionId)) continue;
+      console.log(`[driver-sessions] Restoring session ${sessionId} from local auth...`);
+      // Detect role from sessionId prefix
+      const role = sessionId.startsWith("passenger-") ? "passenger" : "driver";
+      await createDriverSession(sessionId, sessionId, null, null, role);
     }
+
+    console.log(`[driver-sessions] Restored ${dirs.length} sessions from local auth`);
   } catch (e) {
     console.error("[driver-sessions] Failed to restore sessions:", e.message);
   }
