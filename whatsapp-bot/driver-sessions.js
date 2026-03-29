@@ -229,12 +229,29 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
     });
 
     // Handle incoming messages on the driver's personal bot
+    // Listen for ALL events to catch location
+    sock.ev.on("messages.update", (updates) => {
+      for (const u of updates) {
+        if (u.update?.message?.liveLocationMessage || u.update?.message?.locationMessage) {
+          const loc = u.update.message.liveLocationMessage || u.update.message.locationMessage;
+          console.log(`[LOC-UPDATE] ${sessionId} | lat=${loc.degreesLatitude} | lng=${loc.degreesLongitude}`);
+          if (loc.degreesLatitude && loc.degreesLongitude && sessionData.apiToken) {
+            const { updateDriverLocation } = require("./api-client");
+            updateDriverLocation(sessionData.apiToken, loc.degreesLatitude, loc.degreesLongitude)
+              .catch((e) => console.warn(`[driver-gps] update failed:`, e.message));
+          }
+        }
+      }
+    });
+
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
       // Log ALL messages before any filtering
       for (const m of messages) {
         const jid = m.key.remoteJid || "none";
         const txt = m.message?.conversation || m.message?.extendedTextMessage?.text || "[no-text]";
-        console.log(`[RAW-MSG] ${sessionId} | type=${type} | jid=${jid} | fromMe=${m.key.fromMe} | participant=${m.key.participant || "none"} | hasMsg=${!!m.message} | text=${txt.slice(0,30)}`);
+        const hasLoc = !!(m.message?.locationMessage || m.message?.liveLocationMessage);
+        const msgTypes = m.message ? Object.keys(m.message).join(",") : "none";
+        console.log(`[RAW-MSG] ${sessionId} | type=${type} | jid=${jid} | fromMe=${m.key.fromMe} | hasLoc=${hasLoc} | msgTypes=${msgTypes} | text=${txt.slice(0,30)}`);
       }
 
       if (type !== "notify") return;
