@@ -226,12 +226,11 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
           try { await syncSessionToConvex(sessionId, "disconnected", sessionData.phone, null); } catch {}
           setTimeout(() => startDriverConnection(sessionId, authDir, sessionData), 3000);
         } else {
-          await syncSessionToConvex(sessionId, "logged_out", sessionData.phone, null);
+          try { await syncSessionToConvex(sessionId, "logged_out", sessionData.phone, null); } catch {}
           activeSessions.delete(sessionId);
-          // Clean up auth files on logout
-          try {
-            fs.rmSync(authDir, { recursive: true, force: true });
-          } catch {}
+          // DON'T delete auth files — preserve for re-scan
+          // Only delete if user explicitly removes session via API
+          console.log(`[driver-sessions] ${sessionId} logged out. Auth files preserved in ${authDir}`);
         }
       }
     });
