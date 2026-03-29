@@ -89,6 +89,7 @@ function saveSessionState(sessionId) {
       phone: session.phone,
       selfLid: session.selfLid,
       lidJid: session.lidJid,
+      welcomed: true,
       savedAt: Date.now(),
     }, null, 2));
   } catch (e) {
@@ -200,10 +201,9 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
 
-        // Send welcome message
-        console.log(`[driver-sessions] Sending welcome to ${phoneNumber} (role=${sessionData.role}, welcomed=${sessionData._welcomed})`);
-        if (phoneNumber && !sessionData._welcomed) {
-          sessionData._welcomed = true;
+        // Send welcome message (only once per session, persisted)
+        const alreadyWelcomed = savedSession?.welcomed || false;
+        if (phoneNumber && !alreadyWelcomed) {
           const jid = `${phoneNumber}@s.whatsapp.net`;
           const isDriver = sessionData.role === "driver";
           const { getDriverState } = require("./driver-handler");
@@ -229,17 +229,11 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
               `Ketik *daftar* untuk mulai registrasi.`;
           } else {
             welcomeText =
-              `🛵 *Halo! Selamat datang di Nemu Ojek* 👋\n\n` +
-              `Aku bot yang bantu kamu pesan ojek. Gampang banget:\n\n` +
-              `📍 *Cara pesan:*\n` +
-              `1. Ketik nama tujuan kamu\n` +
-              `   Contoh: *Gedung Sate*, *Mall PVJ*, *RS Borromeus*\n\n` +
-              `2. Atau langsung ketik:\n` +
-              `   *gas ke Blok M*\n` +
-              `   *tujuan Dago*\n` +
-              `   *ke Pasteur*\n\n` +
-              `3. Atau *share lokasi* tujuan kamu 📍\n\n` +
-              `Aku akan cariin driver terdekat dan kasih estimasi harga. Yuk coba!`;
+              `🛵 *Nemu Ojek* — Ojek tanpa komisi\n\n` +
+              `Mau ke mana hari ini? Bilang aja:\n\n` +
+              `💬 *"dari [pickup] ke [tujuan]"*\n` +
+              `Contoh: _dari Pasteur ke Gedung Sate_\n\n` +
+              `Atau share 📍 lokasi kamu lalu ketik tujuan.`;
           }
           // Step 1: Send a hidden probe to detect self-LID
           // This tiny invisible message lets us identify which @lid is our own self-chat

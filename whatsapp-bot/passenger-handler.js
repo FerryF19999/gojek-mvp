@@ -105,6 +105,16 @@ function detectIntent(text, session) {
   const priceMatch = t.match(/(?:berapa|harga|estimasi|ongkos|biaya|tarif)\s*(?:ke|sampai|menuju)?\s*(.+)/);
   if (priceMatch) return { intent: "price_check", destination: priceMatch[1].trim() };
 
+  // Full route: "dari X ke Y", "dari X menuju Y", "pickup X tujuan Y"
+  const routeMatch = t.match(/(?:dari|pickup|jemput di|jemput)\s+(.+?)\s+(?:ke|menuju|tujuan|sampai)\s+(.+)/);
+  if (routeMatch) {
+    const pickup = routeMatch[1].replace(/\b(dong|ya|yah)\b/g, "").trim();
+    const dest = routeMatch[2].replace(/\b(dong|ya|yah)\b/g, "").trim();
+    if (pickup.length >= 2 && dest.length >= 2) {
+      return { intent: "full_route", pickup, destination: dest };
+    }
+  }
+
   // Book with destination: "gas ke X", "pesan ke X", "ojek ke X", "ke X dong", "tujuan X"
   const bookMatch = t.match(/(?:gas|gass+|pesan|ojek|book|antar|anter|mau ke|ke|tujuan|menuju|arah)\s+(.{2,})/);
   if (bookMatch) {
@@ -337,6 +347,27 @@ async function handlePassenger(sock, jid, phone, session, msg, locationMsg) {
   }
 
   // ─── IDLE / default — smart routing ───
+
+  // Full route: "dari pasteur ke gedung sate"
+  if (intent.intent === "full_route") {
+    session.data = { ...session.data, name: session.data?.name || phone };
+    // Geocode pickup
+    try {
+      const geo = await geocodeAddress(intent.pickup);
+      if (geo) {
+        session.data.pickup = geo.displayName.split(",").slice(0, 2).join(",").trim();
+        session.data.pickupLat = geo.lat;
+        session.data.pickupLng = geo.lng;
+      } else {
+        session.data.pickup = intent.pickup;
+      }
+    } catch {
+      session.data.pickup = intent.pickup;
+    }
+    session.state = "ASK_DESTINATION";
+    writeSession(phone, session);
+    return await processDestination(sock, jid, phone, session, intent.destination);
+  }
 
   // Direct book: "gas ke blok m"
   if (intent.intent === "book_direct") {
