@@ -165,6 +165,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // QR as scannable HTML page
+  if (pathname === "/qr-scan") {
+    const status = getStatus();
+    if (status.connected) {
+      res.setHeader("Content-Type", "text/html");
+      res.end(`<html><body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0a;color:#22c55e;font-family:system-ui;font-size:24px">✅ Bot Connected! (${status.number || ""})</body></html>`);
+      return;
+    }
+    if (!status.qr) {
+      res.setHeader("Content-Type", "text/html");
+      res.end(`<html><body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0a;color:white;font-family:system-ui">⏳ Generating QR... refresh in a few seconds</body></html>`);
+      return;
+    }
+    try {
+      const QRCode = require("qrcode");
+      const dataUrl = await QRCode.toDataURL(status.qr, { width: 400, margin: 2 });
+      res.setHeader("Content-Type", "text/html");
+      res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="25"></head><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0a0a0a;color:white;font-family:system-ui"><h2>🏍️ Nemu Ojek</h2><p style="color:#888">Buka WhatsApp > Linked Devices > Scan QR</p><img src="${dataUrl}" style="border-radius:16px;margin:16px"><p style="color:#555;font-size:13px">Auto-refresh tiap 25 detik</p></body></html>`);
+    } catch (e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   // ─── Driver Session API ───
 
   // List all driver sessions
