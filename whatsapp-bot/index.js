@@ -25,6 +25,7 @@ const {
 } = require("./driver-sessions");
 const { notifyDriverNewRide, markDriverRideCompleted, getDriverState } = require("./driver-handler");
 const { getRideStatus } = require("./api-client");
+const mainAgent = require("./agents/main-agent");
 
 // ─── Config ───
 const CONVEX_URL = process.env.CONVEX_URL;
@@ -39,6 +40,7 @@ if (CONVEX_URL) {
   convexClient = new ConvexHttpClient(CONVEX_URL);
   setCentralConvex(convexClient);
   setDriverConvex(convexClient);
+  mainAgent.init(convexClient);
 }
 
 // ─── Dispatch Poller ───
@@ -228,18 +230,26 @@ async function main() {
 
   // Start central bot
   console.log("[central-bot] Starting central passenger bot...");
-  await startCentralBot();
+  const centralSock = await startCentralBot();
+
+  // Pass central socket to main agent for admin notifications
+  if (centralSock) {
+    mainAgent.setCentral(centralSock);
+  }
 
   // Restore existing driver sessions
   console.log("[driver-sessions] Restoring driver sessions...");
   await restoreSessions();
 
-  // Start dispatch polling
-  setInterval(() => pollDispatch().catch((e) => console.warn("[dispatch]", e.message)), DISPATCH_POLL_MS);
+  // Start AI Main Agent (handles dispatch, monitoring, validation)
+  // Falls back to rule-based if no LLM API key configured
+  console.log("[main-agent] Starting AI orchestrator...");
+  mainAgent.start();
 
   console.log("\n✅ Nemu Ojek Bot is running!");
   console.log(`   Central bot: ${getStatus().connected ? "connected" : "waiting for QR scan"}`);
   console.log(`   Driver sessions: ${listSessions().length} active`);
+  console.log(`   AI Agent: ${require("./agents/llm-provider").isAvailable() ? "active" : "rule-based (no API key)"}`);
   console.log(`   HTTP API: http://localhost:${HTTP_PORT}`);
 }
 

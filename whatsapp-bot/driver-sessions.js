@@ -185,6 +185,17 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         const jid = m.key.remoteJid;
         if (!jid || jid.endsWith("@g.us") || m.key.fromMe) continue;
 
+        // Detect live location sharing from driver → update GPS
+        if (m.message.locationMessage || m.message.liveLocationMessage) {
+          const loc = m.message.liveLocationMessage || m.message.locationMessage;
+          if (loc.degreesLatitude && loc.degreesLongitude && sessionData.apiToken) {
+            const { updateDriverLocation } = require("./api-client");
+            updateDriverLocation(sessionData.apiToken, loc.degreesLatitude, loc.degreesLongitude)
+              .catch((e) => console.warn(`[driver-gps] ${sessionId} location update failed:`, e.message));
+          }
+          continue; // Don't process location as a text message
+        }
+
         const text =
           m.message.conversation ||
           m.message.extendedTextMessage?.text ||
