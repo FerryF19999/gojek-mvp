@@ -241,39 +241,23 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
               `3. Atau *share lokasi* tujuan kamu 📍\n\n` +
               `Aku akan cariin driver terdekat dan kasih estimasi harga. Yuk coba!`;
           }
-          try {
-            const sent = await sendBotReply(sock, jid, welcomeText);
-            // Detect self-LID from the sent message's JID
-            // Welcome goes to phone@s.whatsapp.net but Baileys may resolve to LID
-            if (sent?.key?.remoteJid?.endsWith("@lid")) {
-              sessionData.selfLid = sent.key.remoteJid;
-              sessionData.lidJid = sent.key.remoteJid;
-              console.log(`[driver-sessions] Self-LID detected from welcome: ${sessionData.selfLid}`);
-              saveSessionState(sessionId);
-            }
-          } catch (e) {
-            console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
+          // Step 1: Send a hidden probe to detect self-LID
+          // This tiny invisible message lets us identify which @lid is our own self-chat
+          if (!sessionData.selfLid) {
+            try {
+              const probe = await sock.sendMessage(jid, { text: "__NEMU_PROBE__" });
+              if (probe?.key?.id) sentMessageIds.add(probe.key.id);
+              console.log(`[driver-sessions] Probe sent to ${jid}, waiting for echo...`);
+            } catch {}
+            // Wait a moment for probe echo, then send welcome
+            await new Promise(r => setTimeout(r, 2000));
           }
 
-          // If we didn't get self-LID from welcome, listen for the first @lid message
-          // that appears right after welcome (user's reply or echo)
-          if (!sessionData.selfLid) {
-            const detectSelfLid = ({ messages: msgs }) => {
-              for (const msg of msgs) {
-                const rid = msg.key?.remoteJid;
-                if (rid?.endsWith("@lid") && msg.key?.fromMe) {
-                  sessionData.selfLid = rid;
-                  sessionData.lidJid = rid;
-                  console.log(`[driver-sessions] Self-LID detected from echo: ${rid}`);
-                  saveSessionState(sessionId);
-                  sock.ev.off("messages.upsert", detectSelfLid);
-                  break;
-                }
-              }
-            };
-            sock.ev.on("messages.upsert", detectSelfLid);
-            // Auto-remove listener after 30 seconds
-            setTimeout(() => sock.ev.off("messages.upsert", detectSelfLid), 30000);
+          // Step 2: Send welcome message
+          try {
+            await sendBotReply(sock, jid, welcomeText);
+          } catch (e) {
+            console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
           }
         }
       }
@@ -335,28 +319,31 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         const ownNumber = sessionData.phone;
         const senderPhone = normalizePhone(jid.split("@")[0]);
-        const isPhoneSelfChat = ownNumber && jid.endsWith("@s.whatsapp.net") && senderPhone === normalizePhone(ownNumber);
 
-        // For @lid JIDs: match saved self-LID
-        const isLidSelfChat = jid.endsWith("@lid") && sessionData.selfLid && jid === sessionData.selfLid;
+        // Self-chat detection — STRICT, only known self JIDs
+        const isPhoneSelfChat = ownNumber && jid === `${normalizePhone(ownNumber)}@s.whatsapp.net`;
+        const isLidSelfChat = sessionData.selfLid && jid === sessionData.selfLid;
+        const isSelfChat = isPhoneSelfChat || isLidSelfChat;
 
-        // Auto-detect self-LID: first @lid message with fromMe=true after connect
-        // This catches the self-chat LID that we couldn't get from welcome message
-        if (jid.endsWith("@lid") && m.key.fromMe && !sessionData.selfLid) {
-          sessionData.selfLid = jid;
-          sessionData.lidJid = jid;
-          console.log(`[driver-sessions] Auto-detected self-LID: ${jid}`);
-          saveSessionState(sessionId);
-          // Process this message as self-chat
+        // If selfLid not detected yet, check for our probe message
+        if (!sessionData.selfLid && jid.endsWith("@lid") && m.key.fromMe) {
+          const txt = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
+          if (txt.includes("__NEMU_PROBE__")) {
+            sessionData.selfLid = jid;
+            sessionData.lidJid = jid;
+            console.log(`[driver-sessions] Self-LID confirmed via probe: ${jid}`);
+            saveSessionState(sessionId);
+            continue; // Don't process probe message
+          }
+          // Not our probe — skip (could be message to someone else)
+          continue;
         }
 
-        const isSelfChat = isLidSelfChat || isPhoneSelfChat || (jid === sessionData.selfLid);
-
-        // ONLY respond in self-chat (Message Yourself) — ignore all other chats
+        // ONLY respond in self-chat — ignore all other chats
         if (!isSelfChat) continue;
 
         // Update lidJid for notifications
-        if (!sessionData.lidJid || sessionData.lidJid.endsWith("@s.whatsapp.net")) {
+        if (jid.endsWith("@lid") && !sessionData.lidJid?.endsWith("@lid")) {
           sessionData.lidJid = jid;
         }
 
