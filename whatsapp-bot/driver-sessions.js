@@ -194,8 +194,8 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         if (savedMeta?.apiToken) {
           sessionData.apiToken = savedMeta.apiToken;
           sessionData.name = savedMeta.name;
-          const { setState } = require("./driver-handler");
-          setState(sessionData.driverId, { apiToken: savedMeta.apiToken, name: savedMeta.name });
+          const { setDriverState } = require("./driver-handler");
+          setDriverState(sessionData.driverId, { apiToken: savedMeta.apiToken, name: savedMeta.name });
         }
 
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
