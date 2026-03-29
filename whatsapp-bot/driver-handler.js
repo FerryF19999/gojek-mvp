@@ -163,6 +163,22 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
   const state = getState(driverId);
   const text = (msg || "").trim();
 
+  // ─── Check local meta file first (in case memory state was lost) ───
+  if (!state.apiToken) {
+    try {
+      const path = require("path");
+      const fs = require("fs");
+      const metaFile = path.join(__dirname, "driver-auths", driverId, "_meta.json");
+      if (fs.existsSync(metaFile)) {
+        const meta = JSON.parse(fs.readFileSync(metaFile, "utf-8"));
+        if (meta.apiToken) {
+          setState(driverId, { apiToken: meta.apiToken, name: meta.name, regStep: null });
+          console.log(`[driver] Recovered token from meta for ${driverId}: ${meta.name}`);
+        }
+      }
+    } catch {}
+  }
+
   // ─── REGISTRATION FLOW (no API token yet) ───
   if (!state.apiToken) {
     // Init registration on "daftar" or first message
