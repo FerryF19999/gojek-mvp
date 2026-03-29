@@ -233,26 +233,8 @@ const server = http.createServer(async (req, res) => {
 
   // ─── Driver Session API ───
 
-  // ─── Send WhatsApp message via any connected session ───
+  // ─── Send WhatsApp message to user's Message Yourself ───
   if (pathname === "/send-message" && req.method === "POST") {
-    // Find any connected session to send from
-    let sock = null;
-    try { const { getSocket } = require("./central-bot"); sock = getSocket(); } catch {}
-    if (!sock) {
-      // Use first connected driver/user session as sender
-      const sessions = listSessions();
-      const connected = sessions.find((s) => s.connected);
-      if (connected) {
-        const { activeSessions } = require("./driver-sessions");
-        const sessionData = activeSessions.get(connected.sessionId);
-        if (sessionData?.sock) sock = sessionData.sock;
-      }
-    }
-    if (!sock) {
-      res.writeHead(503);
-      res.end(JSON.stringify({ error: "No connected WhatsApp session" }));
-      return;
-    }
     const body = await parseBody(req);
     const { phone, message } = body;
     if (!phone || !message) {
@@ -261,11 +243,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     try {
-      const { normalizePhone } = require("./utils");
-      const normalized = normalizePhone(phone);
-      const jid = `${normalized}@s.whatsapp.net`;
-      await sock.sendMessage(jid, { text: message });
-      res.end(JSON.stringify({ ok: true, phone: normalized }));
+      const sent = await sendToSelfByPhone(phone, message);
+      if (sent) {
+        res.end(JSON.stringify({ ok: true, phone }));
+      } else {
+        res.writeHead(404);
+        res.end(JSON.stringify({ error: "No connected session for this phone" }));
+      }
     } catch (e) {
       res.writeHead(500);
       res.end(JSON.stringify({ error: e.message }));
