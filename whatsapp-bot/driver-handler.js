@@ -157,9 +157,22 @@ function detectDriverIntent(text, state) {
 
 async function handleDriverMessage(sock, jid, driverId, msg) {
   const state = getState(driverId);
+
+  // If no API token yet, auto-register driver first
   if (!state.apiToken) {
-    await sendReply(sock, jid, "⚠️ Bot belum terhubung dengan akun driver. Hubungi admin.");
-    return;
+    const { registerDriver } = require("./api-client");
+    try {
+      const phone = driverId.replace(/^driver-/, "").replace(/-\d+$/, "");
+      const data = await registerDriver(phone, state.name || "Driver", "NOPOL", "Jakarta");
+      const token = data?.driver?.apiToken || data?.apiToken;
+      if (token) {
+        setState(driverId, { apiToken: token, name: data?.driver?.name || state.name });
+        await sendReply(sock, jid, "✅ Akun driver otomatis terdaftar! Lanjut ya...\n");
+      }
+    } catch (e) {
+      // If register fails, still allow basic commands
+      console.warn("[driver] auto-register failed:", e.message);
+    }
   }
 
   const intent = detectDriverIntent(msg, state);
@@ -184,6 +197,9 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
       if (state.status === "checked_in") { await sendReply(sock, jid, pick(T.alreadyOnline)); return; }
       if (state.status === "on_ride" || state.status === "waiting_ride") {
         await sendReply(sock, jid, "Selesaikan orderan dulu ya 🙏"); return;
+      }
+      if (!state.apiToken) {
+        await sendReply(sock, jid, "⚠️ Akun driver belum terdaftar. Coba lagi atau hubungi admin."); return;
       }
       try {
         await setDriverAvailability(state.apiToken, "online");
