@@ -212,21 +212,17 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
           let welcomeText;
           if (isDriver && isRegistered) {
+            const name = driverState.name || savedMeta?.name || "";
             welcomeText =
-              `🏍️ *Nemu Ojek — Driver*\n\n` +
-              `Selamat datang kembali${driverState.name ? ", " + driverState.name : ""}! ✅\n\n` +
-              `📋 *Perintah:*\n` +
-              `• *checkin* — Mulai shift\n` +
-              `• *checkout* — Selesai shift\n` +
-              `• *saldo* — Cek penghasilan\n` +
-              `• *terima* / *tolak* — Respon orderan\n\n` +
-              `Ketik *checkin* untuk mulai!`;
+              `🏍️ *Nemu Ojek*\n\n` +
+              `Halo${name ? " " + name : ""}! Bot driver kamu aktif ✅\n\n` +
+              `Ketik *checkin* untuk mulai shift\n` +
+              `Ketik *help* untuk semua perintah`;
           } else if (isDriver) {
             welcomeText =
-              `🏍️ *Nemu Ojek — Daftar Driver*\n\n` +
+              `🏍️ *Nemu Ojek*\n\n` +
               `Bot aktif ✅\n\n` +
-              `Kamu belum terdaftar sebagai driver.\n` +
-              `Ketik *daftar* untuk mulai registrasi.`;
+              `Ketik *daftar* untuk registrasi driver.`;
           } else {
             welcomeText =
               `🛵 *Nemu Ojek* — Ojek tanpa komisi\n\n` +
@@ -253,6 +249,8 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
           } catch (e) {
             console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
           }
+          // Save welcomed flag so we don't send again on restart
+          saveSessionState(sessionId);
         }
       }
 
