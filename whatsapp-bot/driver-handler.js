@@ -10,19 +10,16 @@ const { setDriverAvailability, getDriverEarnings, driverRespondRide } = require(
 
 const T = {
   welcome: "🏍️ Selamat datang di Nemu Ojek!\nKetik *checkin* untuk mulai shift.",
-  checkedIn: (earnings) => {
+  checkedIn: (earnings, token) => {
     const extras = [];
     if (earnings) {
       extras.push(`Kemarin: Rp ${formatIdr(earnings.earningsToday || 0)} dari ${earnings.totalRides || 0} trip.`);
       if (earnings.avgRating) extras.push(`⭐ Rating: ${Number(earnings.avgRating).toFixed(1)}`);
     }
-    const base = [
-      "✅ Kamu sekarang *online*! Siap terima orderan 🏍️",
-      "✅ Online! Orderan bisa masuk kapan aja 🏍️",
-      "✅ Gas! Kamu udah online, tunggu orderan ya 💪",
-    ];
-    const msg = base[Math.floor(Math.random() * base.length)];
-    return extras.length ? `${msg}\n${extras.join(" ")}` : msg;
+    const base = "✅ Kamu sekarang *online*! Siap terima orderan 🏍️";
+    const appUrl = process.env.NEMU_APP_URL || "https://gojek-mvp.vercel.app";
+    const gpsLink = token ? `\n\n📍 *Aktifkan GPS:*\n${appUrl}/driver-gps?token=${token}\n_(buka link ini di browser HP supaya lokasi kamu terupdate otomatis)_` : "";
+    return `${base}${extras.length ? "\n" + extras.join(" ") : ""}${gpsLink}`;
   },
   alreadyOnline: [
     "Kamu udah online kok! Tunggu orderan aja 🏍️",
@@ -291,7 +288,7 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
         setState(driverId, { status: "checked_in" });
         let earnings = null;
         try { earnings = await getDriverEarnings(state.apiToken); } catch {}
-        await sendReply(sock, jid, T.checkedIn(earnings));
+        await sendReply(sock, jid, T.checkedIn(earnings, state.apiToken));
       } catch (e) {
         console.error("[driver] checkin failed:", e.message);
         await sendReply(sock, jid, "Gagal checkin. Coba lagi ya.");
