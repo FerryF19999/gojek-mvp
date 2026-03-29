@@ -259,13 +259,28 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
           if (m.key.fromMe) continue;
         }
 
-        // Detect live location sharing → update GPS
+        // Detect live location sharing → update GPS + confirm
         if (m.message.locationMessage || m.message.liveLocationMessage) {
           const loc = m.message.liveLocationMessage || m.message.locationMessage;
-          if (loc.degreesLatitude && loc.degreesLongitude && sessionData.apiToken) {
-            const { updateDriverLocation } = require("./api-client");
-            updateDriverLocation(sessionData.apiToken, loc.degreesLatitude, loc.degreesLongitude)
-              .catch((e) => console.warn(`[driver-gps] ${sessionId} location update failed:`, e.message));
+          const isLive = !!m.message.liveLocationMessage;
+          if (loc.degreesLatitude && loc.degreesLongitude) {
+            if (sessionData.apiToken) {
+              const { updateDriverLocation } = require("./api-client");
+              updateDriverLocation(sessionData.apiToken, loc.degreesLatitude, loc.degreesLongitude)
+                .then(() => {
+                  // Only confirm first time or for static location
+                  if (!sessionData._gpsConfirmed || !isLive) {
+                    sessionData._gpsConfirmed = true;
+                    const msg = isLive
+                      ? `📍 *GPS connected!* Lokasi kamu terupdate otomatis.\n\nLat: ${loc.degreesLatitude.toFixed(4)}, Lng: ${loc.degreesLongitude.toFixed(4)}`
+                      : `📍 Lokasi diupdate: ${loc.degreesLatitude.toFixed(4)}, ${loc.degreesLongitude.toFixed(4)}`;
+                    sendBotReply(sock, jid, msg).catch(() => {});
+                  }
+                })
+                .catch((e) => console.warn(`[driver-gps] ${sessionId} location update failed:`, e.message));
+            } else {
+              sendBotReply(sock, jid, "📍 Lokasi diterima, tapi kamu belum terdaftar. Ketik *daftar* dulu ya.").catch(() => {});
+            }
           }
           continue;
         }
