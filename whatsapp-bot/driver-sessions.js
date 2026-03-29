@@ -201,45 +201,8 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
 
-        // Send welcome message (only once per session, persisted)
-        const alreadyWelcomed = savedSession?.welcomed || false;
-        if (phoneNumber && !alreadyWelcomed) {
-          const jid = `${phoneNumber}@s.whatsapp.net`;
-          const isDriver = sessionData.role === "driver";
-          const { getDriverState } = require("./driver-handler");
-          const driverState = getDriverState(sessionData.driverId);
-          const isRegistered = !!driverState.apiToken || !!savedMeta?.apiToken;
-
-          let welcomeText;
-          if (isDriver && isRegistered) {
-            const name = driverState.name || savedMeta?.name || "";
-            welcomeText =
-              `🏍️ *Nemu Ojek*\n\n` +
-              `Halo${name ? " " + name : ""}! Bot driver kamu aktif ✅\n\n` +
-              `Ketik *checkin* untuk mulai shift\n` +
-              `Ketik *help* untuk semua perintah`;
-          } else if (isDriver) {
-            welcomeText =
-              `🏍️ *Nemu Ojek*\n\n` +
-              `Bot aktif ✅\n\n` +
-              `Ketik *daftar* untuk registrasi driver.`;
-          } else {
-            welcomeText =
-              `🛵 *Nemu Ojek* — Ojek tanpa komisi\n\n` +
-              `Mau ke mana hari ini? Bilang aja:\n\n` +
-              `💬 *"dari [pickup] ke [tujuan]"*\n` +
-              `Contoh: _dari Pasteur ke Gedung Sate_\n\n` +
-              `Atau share 📍 lokasi kamu lalu ketik tujuan.`;
-          }
-          // Send welcome message
-          try {
-            await sendBotReply(sock, jid, welcomeText);
-          } catch (e) {
-            console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
-          }
-          // Save welcomed flag so we don't send again on restart
-          saveSessionState(sessionId);
-        }
+        // Welcome is sent via @lid when selfLid is detected (in messages.upsert handler)
+        // This ensures message appears in Message Yourself, not just phone@s.whatsapp.net
       }
 
       if (connection === "close") {
@@ -307,12 +270,31 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         // Auto-detect self-LID: first text message from @lid with fromMe=true
         if (!sessionData.selfLid && jid.endsWith("@lid") && m.key.fromMe) {
           const txt = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
-          if (txt && !txt.includes("__NEMU_PROBE__")) {
+          if (txt) {
             // This is the user typing in Message Yourself — save this LID
             sessionData.selfLid = jid;
             sessionData.lidJid = jid;
             console.log(`[driver-sessions] Self-LID auto-detected: ${jid}`);
             saveSessionState(sessionId);
+
+            // Send welcome message now (to the correct @lid JID)
+            if (!sessionData._welcomeSentToLid) {
+              sessionData._welcomeSentToLid = true;
+              const isDriver = sessionData.role === "driver";
+              const { getDriverState } = require("./driver-handler");
+              const dState = getDriverState(sessionData.driverId);
+              const isReg = !!dState.apiToken || !!sessionData.apiToken;
+              let welcome;
+              if (isDriver && isReg) {
+                const nm = dState.name || sessionData.name || "";
+                welcome = `🏍️ *Nemu Ojek*\n\nHalo${nm ? " " + nm : ""}! Bot driver kamu aktif ✅\n\nKetik *checkin* untuk mulai shift\nKetik *help* untuk semua perintah`;
+              } else if (isDriver) {
+                welcome = `🏍️ *Nemu Ojek*\n\nBot aktif ✅\nKetik *daftar* untuk registrasi driver.`;
+              } else {
+                welcome = `🛵 *Nemu Ojek* — Ojek tanpa komisi\n\nMau ke mana hari ini? Bilang aja:\n\n💬 *"dari [pickup] ke [tujuan]"*\nContoh: _dari Pasteur ke Gedung Sate_\n\nAtau share 📍 lokasi kamu lalu ketik tujuan.`;
+              }
+              sendBotReply(sock, jid, welcome).catch(() => {});
+            }
             // Fall through to process this message
           }
         }
