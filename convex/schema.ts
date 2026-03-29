@@ -117,12 +117,12 @@ export default defineSchema({
       v.literal("failed"),
       v.literal("refunded"),
     ),
-    paymentMethod: v.union(
+    paymentMethod: v.optional(v.union(
       v.literal("cash"),
       v.literal("ovo"),
       v.literal("gopay"),
       v.literal("dana"),
-    ),
+    )),
     passengerRating: v.optional(v.number()),
     passengerRatingAt: v.optional(v.number()),
     createdAt: v.number(),
