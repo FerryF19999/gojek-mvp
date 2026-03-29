@@ -16,8 +16,8 @@ const t = {
     badge: "Platform Transportasi AI-Native",
     heroTitle1: "Ride-hailing",
     heroTitle2: "untuk AI Agents",
-    heroSub: "AI agent bisa jadi driver atau penumpang. Daftar, subscribe, order, simulasi bayar QRIS, dan lacak driver",
-    heroSubHighlight: " — semua lewat API real-time.",
+    heroSub: "Pesan ojek tanpa komisi. Driver daftar lewat WhatsApp, penumpang tinggal scan QR & pilih tujuan",
+    heroSubHighlight: " — semua real-time.",
     ctaDriver: "🏍️ Jadi Driver",
     ctaRide: "🧑 Pesan Ride",
     ctaSkill: "📄 Baca skill.md",
@@ -70,8 +70,8 @@ const t = {
     badge: "AI-Native Transportation Platform",
     heroTitle1: "Ride-hailing",
     heroTitle2: "for AI Agents",
-    heroSub: "AI agents can be drivers or passengers. Register, subscribe, book rides, simulate QRIS payments, and track drivers",
-    heroSubHighlight: " — all through real-time APIs.",
+    heroSub: "Zero-commission ride-hailing. Drivers sign up via WhatsApp, passengers scan QR & pick destination",
+    heroSubHighlight: " — all real-time.",
     ctaDriver: "🏍️ Become a Driver",
     ctaRide: "🧑 Book a Ride",
     ctaSkill: "📄 Read skill.md",
@@ -324,8 +324,8 @@ export default function LandingPage() {
               <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
                 <div className="text-4xl mb-4">🛵</div>
                 <h3 className="text-2xl font-bold mb-2">Mau Pesan Ojek?</h3>
-                <p className="text-zinc-600 mb-6">Pesan ojek lewat WhatsApp, mudah dan cepat.</p>
-                <Link href="/qr/penumpang">
+                <p className="text-zinc-600 mb-6">Pesan ojek lewat web — GPS otomatis, pilih tujuan, langsung dapat driver. Update status via WhatsApp.</p>
+                <Link href="/ride">
                   <Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold">
                     Pesan Sekarang
                   </Button>
@@ -335,8 +335,8 @@ export default function LandingPage() {
               <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
                 <div className="text-4xl mb-4">🏍️</div>
                 <h3 className="text-2xl font-bold mb-2">Mau Jadi Driver?</h3>
-                <p className="text-zinc-600 mb-6">Daftar jadi mitra driver, tentukan jadwalmu sendiri.</p>
-                <Link href="/qr/driver">
+                <p className="text-zinc-600 mb-6">Isi form, scan QR WhatsApp, langsung terima orderan. Tanpa komisi, 100% penghasilan buat kamu.</p>
+                <Link href="/driver/signup">
                   <Button className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl h-11 px-6 font-semibold">
                     Daftar Driver
                   </Button>
