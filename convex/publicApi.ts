@@ -208,19 +208,11 @@ export const createPublicRide = mutation({
       updatedAt: now,
     });
 
-    const runId = `${String(rideId)}-${now}`;
-    const firstJobId = await ctx.scheduler.runAfter(500, internal.rideAgent.runRideAgentStep, {
-      rideId,
-      runId,
-      step: "dispatching",
-    });
-
+    // Don't auto-start ride agent — let the WhatsApp bot dispatch handle it
+    // Bot dispatch: find driver → notify via Message Yourself → wait for "terima"
     await ctx.db.patch(rideId, {
-      agentRunId: runId,
-      agentStatus: "running",
-      agentSpeed: "normal",
-      agentJobIds: [String(firstJobId)],
-      lastStepAt: now,
+      agentStatus: "stopped",
+      status: "dispatching",
       updatedAt: now,
     });
 
