@@ -26,6 +26,7 @@ const {
 const { notifyDriverNewRide, markDriverRideCompleted, getDriverState } = require("./driver-handler");
 const { getRideStatus } = require("./api-client");
 const mainAgent = require("./agents/main-agent");
+const { sendToSelf, sendToSelfByPhone, findSessionByPhone } = require("./driver-sessions");
 
 // ─── Config ───
 const CONVEX_URL = process.env.CONVEX_URL;
@@ -65,17 +66,30 @@ async function pollDispatch() {
       const notifyKey = `${rideCode}:${ride.assignedDriverId}`;
       if (notifiedRides.has(notifyKey)) continue;
 
-      // Find the driver's session socket
-      const driverInfo = getDriverSocket(ride.assignedDriverId);
-      if (!driverInfo) continue;
+      // Notify driver via their Message Yourself session
+      const driverSession = getDriverSocket(ride.assignedDriverId);
+      if (!driverSession) continue;
 
-      const { sock, phone } = driverInfo;
-      const jid = `${phone}@s.whatsapp.net`;
+      // Build notification message
+      const pickup = ride.pickup?.address || "-";
+      const dropoff = ride.dropoff?.address || "-";
+      const amount = ride.price?.amount || 0;
+      const { formatIdr } = require("./utils");
+      const notifText =
+        `🆕 *Ada orderan baru!*\n\n` +
+        `📍 Jemput: ${pickup}\n` +
+        `🏁 Tujuan: ${dropoff}\n` +
+        `💰 Rp ${formatIdr(amount)}\n\n` +
+        `Ketik *terima* atau *tolak*`;
 
-      const sent = await notifyDriverNewRide(sock, jid, ride.assignedDriverId, ride);
+      // Send to driver's Message Yourself via their session
+      const sent = await sendToSelf(ride.assignedDriverId, notifText);
       if (sent) {
+        // Update driver handler state
+        const { setDriverState } = require("./driver-handler");
+        setDriverState(ride.assignedDriverId, { status: "waiting_ride", pendingRideCode: rideCode });
         notifiedRides.add(notifyKey);
-        console.log(`[dispatch] Notified driver ${ride.assignedDriverId} for ride ${rideCode}`);
+        console.log(`[dispatch] Notified driver ${ride.assignedDriverId} for ride ${rideCode} via Message Yourself`);
       }
     }
 

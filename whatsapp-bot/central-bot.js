@@ -205,7 +205,7 @@ async function startCentralBot() {
       console.log("[central-bot] ✅ Central bot connected");
 
       // Start polling for ride updates
-      setInterval(() => pollPassengerRideUpdates(sock), POLL_INTERVAL_MS);
+      setInterval(() => pollPassengerRideUpdates(), POLL_INTERVAL_MS);
     }
 
     if (connection === "close") {

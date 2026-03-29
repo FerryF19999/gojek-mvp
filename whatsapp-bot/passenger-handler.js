@@ -451,7 +451,8 @@ async function bookRide(sock, jid, phone, session) {
 
 // ─── Polling ───
 
-async function pollPassengerRideUpdates(sock) {
+async function pollPassengerRideUpdates() {
+  const { sendToSelfByPhone } = require("./driver-sessions");
   const rides = readRidesIndex();
   const codes = Object.keys(rides);
   if (!codes.length) return;
@@ -466,20 +467,19 @@ async function pollPassengerRideUpdates(sock) {
       const status = ride.status;
       if (!status) continue;
 
-      const jid = `${rec.phone}@s.whatsapp.net`;
       const url = `${APP_URL}/track/${rideCode}`;
 
       if (status === "assigned" && !rec.assignedNotified) {
         const name = ride.driver?.name || "Driver";
         const plate = ride.driver?.plate || ride.driver?.vehiclePlate || "-";
-        await sendReply(sock, jid, pick(T.driverFound(name, plate, url)));
+        await sendToSelfByPhone(rec.phone, pick(T.driverFound(name, plate, url)));
         rec.assignedNotified = true;
       }
 
       if (status !== rec.lastStatus) {
         rec.lastStatus = status;
-        if (status === "driver_arriving") await sendReply(sock, jid, T.arriving);
-        if (status === "picked_up") await sendReply(sock, jid, T.pickedUp);
+        if (status === "driver_arriving") await sendToSelfByPhone(rec.phone, T.arriving);
+        if (status === "picked_up") await sendToSelfByPhone(rec.phone, T.pickedUp);
       }
 
       if (status === "completed" && !rec.ratingAsked) {
@@ -493,7 +493,7 @@ async function pollPassengerRideUpdates(sock) {
           ratingMeta: { rideCode, driverName, expiresAt: now() + RATING_TIMEOUT_MS },
         };
         writeSession(rec.phone, session);
-        await sendReply(sock, jid, pick(T.completed(driverName)));
+        await sendToSelfByPhone(rec.phone, pick(T.completed(driverName)));
       }
 
       if (rec.ratingAsked) {

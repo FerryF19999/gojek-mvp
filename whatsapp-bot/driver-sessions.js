@@ -278,6 +278,12 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         // ONLY respond in self-chat (Message Yourself) — ignore all other chats
         if (!isSelfChat) continue;
 
+        // Save LID jid for sending notifications later
+        if (jid.endsWith("@lid") && !sessionData.lidJid) {
+          sessionData.lidJid = jid;
+          console.log(`[driver-sessions] Saved LID jid for ${sessionId}: ${jid}`);
+        }
+
         // Skip bot's own replies to avoid echo loop
         if (sentMessageIds.has(m.key.id)) continue;
 
@@ -404,6 +410,53 @@ function getSessionInfo(sessionId) {
 }
 
 /**
+ * Send a message to a user's Message Yourself (self-chat)
+ * Uses the saved LID jid from their session
+ */
+async function sendToSelf(sessionId, text) {
+  const session = activeSessions.get(sessionId);
+  if (!session?.sock || !session.connected) return false;
+
+  const jid = session.lidJid || (session.phone ? `${session.phone}@s.whatsapp.net` : null);
+  if (!jid) return false;
+
+  try {
+    const sent = await session.sock.sendMessage(jid, { text });
+    if (sent?.key?.id) sentMessageIds.add(sent.key.id);
+    return true;
+  } catch (e) {
+    console.warn(`[driver-sessions] sendToSelf failed for ${sessionId}:`, e.message);
+    return false;
+  }
+}
+
+/**
+ * Send to a user's Message Yourself by phone number (find session first)
+ */
+async function sendToSelfByPhone(phone, text) {
+  const normalized = normalizePhone(phone);
+  for (const [sessionId, session] of activeSessions) {
+    if (session.connected && session.phone && normalizePhone(session.phone) === normalized) {
+      return await sendToSelf(sessionId, text);
+    }
+  }
+  return false;
+}
+
+/**
+ * Find session by phone number
+ */
+function findSessionByPhone(phone) {
+  const normalized = normalizePhone(phone);
+  for (const [sessionId, session] of activeSessions) {
+    if (session.phone && normalizePhone(session.phone) === normalized) {
+      return { sessionId, ...session };
+    }
+  }
+  return null;
+}
+
+/**
  * List all active sessions
  */
 function listSessions() {
@@ -467,4 +520,7 @@ module.exports = {
   getDriverSocket,
   restoreSessions,
   activeSessions,
+  sendToSelf,
+  sendToSelfByPhone,
+  findSessionByPhone,
 };
