@@ -73,6 +73,30 @@ async function syncSessionToConvex(sessionId, status, phone, qr) {
 }
 
 /**
+ * Save session state to disk for persistence across restarts
+ */
+function saveSessionState(sessionId) {
+  const session = activeSessions.get(sessionId);
+  if (!session) return;
+  const dir = path.join(DRIVER_AUTHS_DIR, sessionId);
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "_session.json"), JSON.stringify({
+      driverId: session.driverId,
+      apiToken: session.apiToken,
+      name: session.name,
+      role: session.role,
+      phone: session.phone,
+      selfLid: session.selfLid,
+      lidJid: session.lidJid,
+      savedAt: Date.now(),
+    }, null, 2));
+  } catch (e) {
+    console.warn(`[driver-sessions] Failed to save session state for ${sessionId}:`, e.message);
+  }
+}
+
+/**
  * Create a new driver session (generates QR for scanning)
  */
 async function createDriverSession(sessionId, driverId, apiToken, name, role) {
@@ -84,13 +108,24 @@ async function createDriverSession(sessionId, driverId, apiToken, name, role) {
   const authDir = path.join(DRIVER_AUTHS_DIR, sessionId);
   ensureDirs(authDir);
 
+  // Load existing session info if available
+  const sessionFile = path.join(DRIVER_AUTHS_DIR, sessionId, "_session.json");
+  let savedSession = null;
+  try {
+    if (fs.existsSync(sessionFile)) {
+      savedSession = JSON.parse(fs.readFileSync(sessionFile, "utf-8"));
+    }
+  } catch {}
+
   const sessionData = {
     sock: null,
-    driverId,
-    apiToken,
-    name,
-    role: role || "driver",
-    phone: null,
+    driverId: driverId || savedSession?.driverId,
+    apiToken: apiToken || savedSession?.apiToken,
+    name: name || savedSession?.name,
+    role: role || savedSession?.role || "driver",
+    phone: savedSession?.phone || null,
+    selfLid: savedSession?.selfLid || null,
+    lidJid: savedSession?.lidJid || null,
     qr: null,
     connected: false,
     reconnecting: false,
@@ -144,6 +179,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         console.log(`[driver-sessions] ✅ ${sessionId} connected (${phoneNumber})`);
         try { await syncSessionToConvex(sessionId, "connected", phoneNumber, null); } catch {}
+        saveSessionState(sessionId);
 
         // Load saved driver data from local file (persists across restarts)
         const metaFile = path.join(DRIVER_AUTHS_DIR, sessionId, "_meta.json");
@@ -211,7 +247,9 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
             // Welcome goes to phone@s.whatsapp.net but Baileys may resolve to LID
             if (sent?.key?.remoteJid?.endsWith("@lid")) {
               sessionData.selfLid = sent.key.remoteJid;
+              sessionData.lidJid = sent.key.remoteJid;
               console.log(`[driver-sessions] Self-LID detected from welcome: ${sessionData.selfLid}`);
+              saveSessionState(sessionId);
             }
           } catch (e) {
             console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
@@ -227,6 +265,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
                   sessionData.selfLid = rid;
                   sessionData.lidJid = rid;
                   console.log(`[driver-sessions] Self-LID detected from echo: ${rid}`);
+                  saveSessionState(sessionId);
                   sock.ev.off("messages.upsert", detectSelfLid);
                   break;
                 }
