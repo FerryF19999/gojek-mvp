@@ -149,6 +149,8 @@ function detectDriverIntent(text, state) {
   if (/\b(status|info|stat|posisi)\b/.test(t)) return { intent: "status" };
   // Help
   if (/\b(help|bantuan|bantu|cara|gimana|menu|command|perintah)\b/.test(t)) return { intent: "help" };
+  // Daftar (already registered)
+  if (/\b(daftar|register|regis|registrasi)\b/.test(t)) return { intent: "already_registered" };
   // Greeting
   if (/\b(halo|hai|hi|hello|pagi|siang|sore|malam|p|hey|assalamualaikum|bos|bang|kak)\b/.test(t)) return { intent: "greet" };
 
@@ -293,6 +295,13 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
         `Buka link ini di browser HP kamu:\n` +
         `${appUrl}/driver-gps?token=${state.apiToken}\n\n` +
         `Lokasi kamu akan terupdate otomatis tiap 2 detik ke sistem Nemu Ojek.`
+      );
+      return;
+
+    case "already_registered":
+      await sendReply(sock, jid,
+        `Kamu sudah terdaftar${state.name ? " sebagai *" + state.name + "*" : ""}! ✅\n\n` +
+        `Ketik *checkin* untuk mulai shift, atau *help* untuk lihat perintah.`
       );
       return;
 
