@@ -66,11 +66,31 @@ async function pollDispatch() {
       const notifyKey = `${rideCode}:${ride.assignedDriverId}`;
       if (notifiedRides.has(notifyKey)) continue;
 
-      // Notify driver via their Message Yourself session
-      const driverSession = getDriverSocket(ride.assignedDriverId);
-      if (!driverSession) continue;
+      // Lookup driver's phone from Convex to find their WhatsApp session
+      let driverPhone = null;
+      try {
+        const drivers = await convexClient.query("drivers:listDrivers");
+        const driver = drivers.find((d) => d._id === ride.assignedDriverId);
+        if (driver?.userId) {
+          // Get user phone
+          const users = await convexClient.query("drivers:getDriver", { driverId: ride.assignedDriverId });
+          driverPhone = users?.user?.phone;
+        }
+      } catch {}
 
-      // Build notification message
+      // Fallback: search all sessions for matching apiToken or any connected driver
+      if (!driverPhone) {
+        const allSessions = listSessions();
+        if (allSessions.length > 0) {
+          // Use first connected driver session
+          const driverSession = allSessions.find((s) => s.connected && s.sessionId.startsWith("driver-"));
+          if (driverSession?.phone) driverPhone = driverSession.phone;
+        }
+      }
+
+      if (!driverPhone) continue;
+
+      // Build notification
       const pickup = ride.pickup?.address || "-";
       const dropoff = ride.dropoff?.address || "-";
       const amount = ride.price?.amount || 0;
@@ -79,17 +99,20 @@ async function pollDispatch() {
         `🆕 *Ada orderan baru!*\n\n` +
         `📍 Jemput: ${pickup}\n` +
         `🏁 Tujuan: ${dropoff}\n` +
-        `💰 Rp ${formatIdr(amount)}\n\n` +
+        `💰 Rp ${formatIdr(amount)}\n` +
+        `🎫 Kode: ${rideCode}\n\n` +
         `Ketik *terima* atau *tolak*`;
 
-      // Send to driver's Message Yourself via their session
-      const sent = await sendToSelf(ride.assignedDriverId, notifText);
+      const sent = await sendToSelfByPhone(driverPhone, notifText);
       if (sent) {
-        // Update driver handler state
-        const { setDriverState } = require("./driver-handler");
-        setDriverState(ride.assignedDriverId, { status: "waiting_ride", pendingRideCode: rideCode });
+        // Find session for this phone and update driver state
+        const session = findSessionByPhone(driverPhone);
+        if (session) {
+          const { setDriverState } = require("./driver-handler");
+          setDriverState(session.driverId, { status: "waiting_ride", pendingRideCode: rideCode });
+        }
         notifiedRides.add(notifyKey);
-        console.log(`[dispatch] Notified driver ${ride.assignedDriverId} for ride ${rideCode} via Message Yourself`);
+        console.log(`[dispatch] Notified driver ${driverPhone} for ride ${rideCode} via Message Yourself`);
       }
     }
 

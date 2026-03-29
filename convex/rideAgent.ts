@@ -342,7 +342,7 @@ export const runRideAgentStep = internalMutation({
 
         return;
       } else if (now >= deadline) {
-        // Timeout — auto-accept for demo
+        // Timeout — driver didn't respond, try next driver
         await ctx.db.patch(args.rideId, {
           driverResponseStatus: "timeout",
           updatedAt: now,
@@ -352,14 +352,16 @@ export const runRideAgentStep = internalMutation({
           rideId: args.rideId,
           actionType: "driver_response_timeout",
           input: { step: args.step, deadlineMs: deadline },
-          output: { status: "timeout", note: "No response within 30s — auto-confirming for demo" },
+          output: { status: "timeout", note: "No response within deadline — reassigning to next driver" },
         });
-        const nextJobId2 = await ctx.scheduler.runAfter(
+
+        // Go back to assigned step to find next driver
+        const retryJobId = await ctx.scheduler.runAfter(
           STEP_DELAY_MS[speed]["awaiting_driver_response"],
           internal.rideAgent.runRideAgentStep,
-          { rideId: args.rideId, runId: args.runId, step: "driver_arriving" },
+          { rideId: args.rideId, runId: args.runId, step: "assigned" },
         );
-        await ctx.db.patch(args.rideId, { agentJobIds: [String(nextJobId2)], updatedAt: now });
+        await ctx.db.patch(args.rideId, { agentJobIds: [String(retryJobId)], updatedAt: now });
         return;
       } else {
         // Still waiting — poll again in 3s
