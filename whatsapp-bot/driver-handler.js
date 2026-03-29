@@ -228,13 +228,18 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
               const path = require("path");
               const fs = require("fs");
               const metaDir = path.join(__dirname, "driver-auths", driverId);
-              if (fs.existsSync(metaDir)) {
-                fs.writeFileSync(path.join(metaDir, "_meta.json"), JSON.stringify({
-                  apiToken: token, name: regName, plate: regPlate, city: regCity, phone,
-                  registeredAt: Date.now(),
-                }, null, 2));
+              console.log(`[driver] Saving meta to ${metaDir}/_meta.json (exists: ${fs.existsSync(metaDir)})`);
+              if (!fs.existsSync(metaDir)) {
+                fs.mkdirSync(metaDir, { recursive: true });
               }
-            } catch {}
+              fs.writeFileSync(path.join(metaDir, "_meta.json"), JSON.stringify({
+                apiToken: token, name: regName, plate: regPlate, city: regCity, phone,
+                registeredAt: Date.now(),
+              }, null, 2));
+              console.log(`[driver] Meta saved for ${driverId}`);
+            } catch (e) {
+              console.error(`[driver] Failed to save meta:`, e.message);
+            }
             await sendReply(sock, jid,
               `✅ *Registrasi berhasil!*\n\n` +
               `Selamat datang, ${regName}! 🏍️\n` +
