@@ -231,19 +231,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
               `Contoh: _dari Pasteur ke Gedung Sate_\n\n` +
               `Atau share 📍 lokasi kamu lalu ketik tujuan.`;
           }
-          // Step 1: Send a hidden probe to detect self-LID
-          // This tiny invisible message lets us identify which @lid is our own self-chat
-          if (!sessionData.selfLid) {
-            try {
-              const probe = await sock.sendMessage(jid, { text: "__NEMU_PROBE__" });
-              if (probe?.key?.id) sentMessageIds.add(probe.key.id);
-              console.log(`[driver-sessions] Probe sent to ${jid}, waiting for echo...`);
-            } catch {}
-            // Wait a moment for probe echo, then send welcome
-            await new Promise(r => setTimeout(r, 2000));
-          }
-
-          // Step 2: Send welcome message
+          // Send welcome message
           try {
             await sendBotReply(sock, jid, welcomeText);
           } catch (e) {
@@ -312,30 +300,30 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         const ownNumber = sessionData.phone;
         const senderPhone = normalizePhone(jid.split("@")[0]);
 
-        // Self-chat detection — STRICT, only known self JIDs
+        // Self-chat detection
         const isPhoneSelfChat = ownNumber && jid === `${normalizePhone(ownNumber)}@s.whatsapp.net`;
         const isLidSelfChat = sessionData.selfLid && jid === sessionData.selfLid;
-        const isSelfChat = isPhoneSelfChat || isLidSelfChat;
 
-        // If selfLid not detected yet, check for our probe message
+        // Auto-detect self-LID: first text message from @lid with fromMe=true
         if (!sessionData.selfLid && jid.endsWith("@lid") && m.key.fromMe) {
           const txt = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
-          if (txt.includes("__NEMU_PROBE__")) {
+          if (txt && !txt.includes("__NEMU_PROBE__")) {
+            // This is the user typing in Message Yourself — save this LID
             sessionData.selfLid = jid;
             sessionData.lidJid = jid;
-            console.log(`[driver-sessions] Self-LID confirmed via probe: ${jid}`);
+            console.log(`[driver-sessions] Self-LID auto-detected: ${jid}`);
             saveSessionState(sessionId);
-            continue; // Don't process probe message
+            // Fall through to process this message
           }
-          // Not our probe — skip (could be message to someone else)
-          continue;
         }
+
+        const isSelfChat = isPhoneSelfChat || isLidSelfChat || (sessionData.selfLid && jid === sessionData.selfLid);
 
         // ONLY respond in self-chat — ignore all other chats
         if (!isSelfChat) continue;
 
-        // Update lidJid for notifications
-        if (jid.endsWith("@lid") && !sessionData.lidJid?.endsWith("@lid")) {
+        // Update lidJid
+        if (jid.endsWith("@lid")) {
           sessionData.lidJid = jid;
         }
 
