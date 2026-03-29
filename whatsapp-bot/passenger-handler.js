@@ -260,6 +260,13 @@ async function handlePassenger(sock, jid, phone, session, msg, locationMsg) {
     if (intent.intent === "confirm") {
       return await bookRide(sock, jid, phone, session);
     }
+    if (intent.intent === "cancel") {
+      session.state = "IDLE";
+      session.data = { name: session.data?.name };
+      writeSession(phone, session);
+      await sendReply(sock, jid, "❌ Dibatalkan. Mau pesan lagi? Ketik tujuan kamu.");
+      return;
+    }
     if (intent.intent === "decline") {
       session.state = "ASK_DESTINATION";
       writeSession(phone, session);
