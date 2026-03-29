@@ -157,21 +157,82 @@ function detectDriverIntent(text, state) {
 
 async function handleDriverMessage(sock, jid, driverId, msg) {
   const state = getState(driverId);
+  const text = (msg || "").trim();
 
-  // If no API token yet, auto-register driver first
+  // ─── REGISTRATION FLOW (no API token yet) ───
   if (!state.apiToken) {
-    const { registerDriver } = require("./api-client");
-    try {
-      const phone = driverId.replace(/^driver-/, "").replace(/-\d+$/, "");
-      const data = await registerDriver(phone, state.name || "Driver", "NOPOL", "Jakarta");
-      const token = data?.driver?.apiToken || data?.apiToken;
-      if (token) {
-        setState(driverId, { apiToken: token, name: data?.driver?.name || state.name });
-        await sendReply(sock, jid, "✅ Akun driver otomatis terdaftar! Lanjut ya...\n");
+    // Init registration state if needed
+    if (!state.regStep) {
+      setState(driverId, { regStep: "ask_name" });
+      await sendReply(sock, jid,
+        "🏍️ *Daftar Driver Nemu Ojek*\n\n" +
+        "Gw bantu daftarin ya. Pertama, *nama lengkap* kamu siapa?"
+      );
+      return;
+    }
+
+    if (state.regStep === "ask_name") {
+      setState(driverId, { regName: text, regStep: "ask_plate" });
+      await sendReply(sock, jid, `Oke ${text}! 🛵 *Nomor plat* motor kamu apa?\n(contoh: B1234XYZ)`);
+      return;
+    }
+
+    if (state.regStep === "ask_plate") {
+      setState(driverId, { regPlate: text.toUpperCase().replace(/\s+/g, ""), regStep: "ask_city" });
+      await sendReply(sock, jid, "🏙️ *Kota operasional* kamu di mana?\n(contoh: Jakarta, Bandung, Surabaya)");
+      return;
+    }
+
+    if (state.regStep === "ask_city") {
+      setState(driverId, { regCity: text, regStep: "confirm" });
+      await sendReply(sock, jid,
+        `📋 *Konfirmasi data driver:*\n\n` +
+        `👤 Nama: ${state.regName}\n` +
+        `🛵 Plat: ${state.regPlate}\n` +
+        `🏙️ Kota: ${text}\n\n` +
+        `Betul? Ketik *ya* untuk daftar atau *tidak* untuk ulang.`
+      );
+      return;
+    }
+
+    if (state.regStep === "confirm") {
+      if (/^(tidak|no|n|gak|ga|ulang|batal)/i.test(text)) {
+        setState(driverId, { regStep: "ask_name", regName: null, regPlate: null, regCity: null });
+        await sendReply(sock, jid, "Oke, ulang dari awal. *Nama lengkap* kamu siapa?");
+        return;
       }
-    } catch (e) {
-      // If register fails, still allow basic commands
-      console.warn("[driver] auto-register failed:", e.message);
+
+      if (/^(ya|y|yes|ok|oke|betul|benar|gas|siap|lanjut)/i.test(text)) {
+        try {
+          const { registerDriver } = require("./api-client");
+          const phone = driverId.replace(/^driver-/, "").replace(/-\d+$/, "");
+          const data = await registerDriver(phone, state.regName, state.regPlate, state.regCity);
+          const token = data?.driver?.apiToken || data?.apiToken;
+          if (token) {
+            setState(driverId, {
+              apiToken: token,
+              name: state.regName,
+              regStep: null, regName: null, regPlate: null, regCity: null,
+            });
+            await sendReply(sock, jid,
+              `✅ *Registrasi berhasil!*\n\n` +
+              `Selamat datang, ${state.regName}! 🏍️\n\n` +
+              `Ketik *checkin* untuk mulai terima orderan.\n` +
+              `Ketik *help* untuk lihat semua perintah.`
+            );
+          } else {
+            throw new Error("No token returned");
+          }
+        } catch (e) {
+          console.error("[driver] registration failed:", e.message);
+          await sendReply(sock, jid, "❌ Registrasi gagal. Coba lagi nanti ya.\n\nKetik apapun untuk ulang.");
+          setState(driverId, { regStep: "ask_name" });
+        }
+        return;
+      }
+
+      await sendReply(sock, jid, "Ketik *ya* untuk lanjut daftar, atau *tidak* untuk ulang.");
+      return;
     }
   }
 
