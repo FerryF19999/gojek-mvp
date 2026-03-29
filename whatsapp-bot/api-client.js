@@ -141,7 +141,43 @@ async function fetchJson(pathname) {
   return safeJson(res);
 }
 
+// Known local places that Nominatim gets wrong
+const LOCAL_PLACES = {
+  "gunung batu": { lat: -6.8747, lng: 107.5675, name: "Gunung Batu, Cimahi" },
+  "gunung batu bandung": { lat: -6.8747, lng: 107.5675, name: "Gunung Batu, Cimahi" },
+  "gunung batu cimahi": { lat: -6.8747, lng: 107.5675, name: "Gunung Batu, Cimahi" },
+  "gedung sate": { lat: -6.9025, lng: 107.6186, name: "Gedung Sate, Bandung" },
+  "gedung sate bandung": { lat: -6.9025, lng: 107.6186, name: "Gedung Sate, Bandung" },
+  "alun alun bandung": { lat: -6.9216, lng: 107.607, name: "Alun-alun Bandung" },
+  "alun-alun bandung": { lat: -6.9216, lng: 107.607, name: "Alun-alun Bandung" },
+  "dago": { lat: -6.8848, lng: 107.6186, name: "Dago, Bandung" },
+  "dago bandung": { lat: -6.8848, lng: 107.6186, name: "Dago, Bandung" },
+  "pasteur": { lat: -6.8936, lng: 107.5932, name: "Pasteur, Bandung" },
+  "pasteur bandung": { lat: -6.8936, lng: 107.5932, name: "Pasteur, Bandung" },
+  "cimindi": { lat: -6.8793, lng: 107.5718, name: "Cimindi, Cimahi" },
+  "cimahi": { lat: -6.8722, lng: 107.5413, name: "Cimahi" },
+  "pvj": { lat: -6.8868, lng: 107.6105, name: "Paris Van Java, Bandung" },
+  "mall pvj": { lat: -6.8868, lng: 107.6105, name: "Paris Van Java, Bandung" },
+  "braga": { lat: -6.9178, lng: 107.6098, name: "Braga, Bandung" },
+  "itb": { lat: -6.8915, lng: 107.6107, name: "ITB, Bandung" },
+  "unpad": { lat: -6.8936, lng: 107.6167, name: "UNPAD, Bandung" },
+  "stasiun bandung": { lat: -6.9126, lng: 107.6091, name: "Stasiun Bandung" },
+  "husein": { lat: -6.9006, lng: 107.5762, name: "Bandara Husein, Bandung" },
+  "bandara husein": { lat: -6.9006, lng: 107.5762, name: "Bandara Husein, Bandung" },
+  "cicaheum": { lat: -6.9058, lng: 107.6518, name: "Terminal Cicaheum, Bandung" },
+  "leuwipanjang": { lat: -6.9381, lng: 107.6014, name: "Terminal Leuwipanjang, Bandung" },
+  "buah batu": { lat: -6.9395, lng: 107.6353, name: "Buah Batu, Bandung" },
+  "kopo": { lat: -6.9363, lng: 107.5859, name: "Kopo, Bandung" },
+};
+
 async function geocodeAddress(address, nearLat, nearLng) {
+  // Check local places first
+  const normalized = (address || "").toLowerCase().trim();
+  const local = LOCAL_PLACES[normalized];
+  if (local) {
+    return { lat: local.lat, lng: local.lng, displayName: local.name };
+  }
+
   let query = address;
 
   if (nearLat && nearLng) {
