@@ -190,12 +190,17 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
               `Ketik *daftar* untuk mulai registrasi.`;
           } else {
             welcomeText =
-              `🛵 *Nemu Ojek*\n\n` +
-              `Bot aktif ✅\n\n` +
-              `📍 *Cara pesan ojek:*\n` +
-              `• Ketik *gas ke [tujuan]* — langsung pesan\n` +
-              `• Atau ketik *pesan* untuk mulai step-by-step\n\n` +
-              `Contoh: *gas ke Blok M*`;
+              `🛵 *Halo! Selamat datang di Nemu Ojek* 👋\n\n` +
+              `Aku bot yang bantu kamu pesan ojek. Gampang banget:\n\n` +
+              `📍 *Cara pesan:*\n` +
+              `1. Ketik nama tujuan kamu\n` +
+              `   Contoh: *Gedung Sate*, *Mall PVJ*, *RS Borromeus*\n\n` +
+              `2. Atau langsung ketik:\n` +
+              `   *gas ke Blok M*\n` +
+              `   *tujuan Dago*\n` +
+              `   *ke Pasteur*\n\n` +
+              `3. Atau *share lokasi* tujuan kamu 📍\n\n` +
+              `Aku akan cariin driver terdekat dan kasih estimasi harga. Yuk coba!`;
           }
           try {
             await sendBotReply(sock, jid, welcomeText);
