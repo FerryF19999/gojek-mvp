@@ -151,21 +151,36 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         if (phoneNumber) {
           const jid = `${phoneNumber}@s.whatsapp.net`;
           const isDriver = sessionData.role === "driver";
-          const welcomeText = isDriver
-            ? `🏍️ *Nemu Ojek — Driver*\n\n` +
-              `Bot aktif ✅ Pesan dari bot muncul di chat ini.\n\n` +
+          const { getDriverState } = require("./driver-handler");
+          const driverState = getDriverState(sessionData.driverId);
+          const isRegistered = !!driverState.apiToken;
+
+          let welcomeText;
+          if (isDriver && isRegistered) {
+            welcomeText =
+              `🏍️ *Nemu Ojek — Driver*\n\n` +
+              `Selamat datang kembali${driverState.name ? ", " + driverState.name : ""}! ✅\n\n` +
               `📋 *Perintah:*\n` +
               `• *checkin* — Mulai shift\n` +
               `• *checkout* — Selesai shift\n` +
               `• *saldo* — Cek penghasilan\n` +
               `• *terima* / *tolak* — Respon orderan\n\n` +
-              `Ketik *checkin* untuk mulai!`
-            : `🛵 *Nemu Ojek*\n\n` +
-              `Bot aktif ✅ Pesan dari bot muncul di chat ini.\n\n` +
+              `Ketik *checkin* untuk mulai!`;
+          } else if (isDriver) {
+            welcomeText =
+              `🏍️ *Nemu Ojek — Daftar Driver*\n\n` +
+              `Bot aktif ✅\n\n` +
+              `Kamu belum terdaftar sebagai driver.\n` +
+              `Ketik *daftar* untuk mulai registrasi.`;
+          } else {
+            welcomeText =
+              `🛵 *Nemu Ojek*\n\n` +
+              `Bot aktif ✅\n\n` +
               `📍 *Cara pesan ojek:*\n` +
               `• Ketik *gas ke [tujuan]* — langsung pesan\n` +
               `• Atau ketik *pesan* untuk mulai step-by-step\n\n` +
               `Contoh: *gas ke Blok M*`;
+          }
           try {
             await sendBotReply(sock, jid, welcomeText);
           } catch (e) {

@@ -115,6 +115,9 @@ function setState(driverId, patch) {
 }
 
 function initDriverState(driverId, apiToken, name) {
+  const existing = driverStates.get(driverId);
+  // Don't overwrite registration data if mid-registration
+  if (existing && existing.regStep) return;
   setState(driverId, { apiToken, name, status: "checked_out", pendingRideCode: null, currentRideCode: null });
 }
 
@@ -161,8 +164,12 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
 
   // ─── REGISTRATION FLOW (no API token yet) ───
   if (!state.apiToken) {
-    // Init registration state if needed
+    // Init registration on "daftar" or first message
     if (!state.regStep) {
+      if (!/daftar|register|mulai|start|gas|ya|y|oke|ok/i.test(text) && state.regStep !== "ask_name") {
+        await sendReply(sock, jid, "Kamu belum terdaftar. Ketik *daftar* untuk mulai registrasi driver.");
+        return;
+      }
       setState(driverId, { regStep: "ask_name" });
       await sendReply(sock, jid,
         "🏍️ *Daftar Driver Nemu Ojek*\n\n" +
@@ -203,22 +210,27 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
       }
 
       if (/^(ya|y|yes|ok|oke|betul|benar|gas|siap|lanjut)/i.test(text)) {
+        const regName = state.regName;
+        const regPlate = state.regPlate;
+        const regCity = state.regCity;
         try {
           const { registerDriver } = require("./api-client");
           const phone = driverId.replace(/^driver-/, "").replace(/-\d+$/, "");
-          const data = await registerDriver(phone, state.regName, state.regPlate, state.regCity);
+          const data = await registerDriver(phone, regName, regPlate, regCity);
           const token = data?.driver?.apiToken || data?.apiToken;
           if (token) {
             setState(driverId, {
               apiToken: token,
-              name: state.regName,
+              name: regName,
               regStep: null, regName: null, regPlate: null, regCity: null,
             });
             await sendReply(sock, jid,
               `✅ *Registrasi berhasil!*\n\n` +
-              `Selamat datang, ${state.regName}! 🏍️\n\n` +
+              `Selamat datang, ${regName}! 🏍️\n` +
+              `🛵 ${regPlate} — ${regCity}\n\n` +
               `Ketik *checkin* untuk mulai terima orderan.\n` +
-              `Ketik *help* untuk lihat semua perintah.`
+              `Ketik *help* untuk lihat semua perintah.\n\n` +
+              `💡 *Tip:* Share *live location* di chat ini supaya GPS kamu otomatis update ke sistem.`
             );
           } else {
             throw new Error("No token returned");
