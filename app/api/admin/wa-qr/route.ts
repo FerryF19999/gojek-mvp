@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server'
 import { ConvexHttpClient } from 'convex/browser'
 
-const convex = new ConvexHttpClient(process.env.CONVEX_URL!)
+function getConvex() {
+  const url = process.env.CONVEX_URL || process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!url) throw new Error('CONVEX_URL not set')
+  return new ConvexHttpClient(url)
+}
 
 export async function GET() {
   try {
+    const convex = getConvex()
     const status = await (convex as any).query('waBot:getStatus', {})
     return NextResponse.json({
       connected: status.connected,
