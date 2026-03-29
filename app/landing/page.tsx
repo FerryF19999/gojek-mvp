@@ -147,6 +147,66 @@ function AnimatedNumber({ target, duration = 1500 }: { target: number; duration?
 }
 
 /* ─── Fade-in on scroll ─── */
+function WhatsAppCTA({ emoji, title, desc, buttonText, buttonColor, initMessage }: {
+  emoji: string; title: string; desc: string; buttonText: string; buttonColor: string; initMessage: string;
+}) {
+  const [phone, setPhone] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSend = async () => {
+    if (!phone || phone.length < 8) { setError("Nomor WA nggak valid"); return; }
+    setSending(true); setError("");
+    try {
+      const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "";
+      const botKey = process.env.NEXT_PUBLIC_BOT_API_KEY || "";
+      const res = await fetch(`${botUrl}/send-message?key=${botKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, message: initMessage }),
+      });
+      if (!res.ok) throw new Error("Bot belum connected. Coba lagi nanti.");
+      setSent(true);
+    } catch (e: any) {
+      setError(e.message || "Gagal kirim. Coba lagi.");
+    } finally { setSending(false); }
+  };
+
+  if (sent) {
+    return (
+      <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8 text-center">
+        <div className="text-4xl mb-4">✅</div>
+        <h3 className="text-xl font-bold mb-2">Cek WhatsApp kamu!</h3>
+        <p className="text-zinc-500">Bot Nemu Ojek sudah kirim pesan ke nomor kamu. Tinggal balas di sana.</p>
+        <button onClick={() => { setSent(false); setPhone(""); }} className="mt-4 text-sm text-green-600 hover:underline">Kirim ke nomor lain</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
+      <div className="text-4xl mb-4">{emoji}</div>
+      <h3 className="text-2xl font-bold mb-2">{title}</h3>
+      <p className="text-zinc-600 mb-4">{desc}</p>
+      <div className="flex gap-2 mb-3">
+        <span className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-zinc-400 text-sm">+62</span>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+          placeholder="812-3456-7890"
+          className="flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-zinc-900 outline-none focus:border-green-500 placeholder:text-zinc-300"
+        />
+      </div>
+      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+      <Button onClick={handleSend} disabled={sending || !phone} className={`${buttonColor} text-white rounded-xl h-11 px-6 font-semibold w-full disabled:opacity-50`}>
+        {sending ? "Mengirim..." : buttonText}
+      </Button>
+    </div>
+  );
+}
+
 function FadeIn({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
@@ -321,27 +381,23 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <FadeIn>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
-                <div className="text-4xl mb-4">🛵</div>
-                <h3 className="text-2xl font-bold mb-2">Mau Pesan Ojek?</h3>
-                <p className="text-zinc-600 mb-6">Pesan ojek lewat web — GPS otomatis, pilih tujuan, langsung dapat driver. Update status via WhatsApp.</p>
-                <Link href="/ride">
-                  <Button className="bg-green-600 hover:bg-green-500 text-white rounded-xl h-11 px-6 font-semibold">
-                    Pesan Sekarang
-                  </Button>
-                </Link>
-              </div>
+              <WhatsAppCTA
+                emoji="🛵"
+                title="Mau Pesan Ojek?"
+                desc="Masukin nomor WA kamu, bot langsung chat kamu di WhatsApp. Tinggal bilang mau ke mana."
+                buttonText="Pesan via WhatsApp"
+                buttonColor="bg-green-600 hover:bg-green-500"
+                initMessage={"Halo! 👋 Mau pesan ojek Nemu?\n\n📍 Share lokasi kamu atau ketik alamat jemput, lalu bilang mau ke mana.\n\nContoh: *gas ke Blok M*"}
+              />
 
-              <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
-                <div className="text-4xl mb-4">🏍️</div>
-                <h3 className="text-2xl font-bold mb-2">Mau Jadi Driver?</h3>
-                <p className="text-zinc-600 mb-6">Isi form, scan QR WhatsApp, langsung terima orderan. Tanpa komisi, 100% penghasilan buat kamu.</p>
-                <Link href="/driver/signup">
-                  <Button className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl h-11 px-6 font-semibold">
-                    Daftar Driver
-                  </Button>
-                </Link>
-              </div>
+              <WhatsAppCTA
+                emoji="🏍️"
+                title="Mau Jadi Driver?"
+                desc="Masukin nomor WA kamu, bot langsung bantu daftarin. Tanpa komisi, 100% penghasilan buat kamu."
+                buttonText="Daftar via WhatsApp"
+                buttonColor="bg-blue-600 hover:bg-blue-500"
+                initMessage={"Halo! 🏍️ Mau daftar jadi driver Nemu Ojek?\n\nSiap bantu kamu daftar. Boleh tahu nama lengkap kamu?"}
+              />
             </div>
           </FadeIn>
         </div>
