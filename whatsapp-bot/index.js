@@ -227,10 +227,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Create a new driver session
+  // Create a new session (driver or passenger)
   if (pathname === "/sessions" && req.method === "POST") {
     const body = await parseBody(req);
-    const { sessionId, driverId, apiToken, name } = body;
+    const { sessionId, driverId, apiToken, name, role } = body;
 
     if (!sessionId) {
       res.writeHead(400);
@@ -239,7 +239,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      await createDriverSession(sessionId, driverId, apiToken, name);
+      await createDriverSession(sessionId, driverId, apiToken, name, role || "driver");
       const info = getSessionInfo(sessionId);
       res.end(JSON.stringify({ ok: true, session: info }));
     } catch (e) {

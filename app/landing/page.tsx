@@ -147,42 +147,31 @@ function AnimatedNumber({ target, duration = 1500 }: { target: number; duration?
 }
 
 /* ─── Fade-in on scroll ─── */
-function WhatsAppCTA({ emoji, title, desc, buttonText, buttonColor, initMessage }: {
-  emoji: string; title: string; desc: string; buttonText: string; buttonColor: string; initMessage: string;
+function WhatsAppCTA({ emoji, title, desc, buttonText, buttonColor, role }: {
+  emoji: string; title: string; desc: string; buttonText: string; buttonColor: string; role: string;
 }) {
   const [phone, setPhone] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSend = async () => {
+  const handleConnect = async () => {
     if (!phone || phone.length < 8) { setError("Nomor WA nggak valid"); return; }
-    setSending(true); setError("");
+    setLoading(true); setError("");
     try {
       const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "";
       const botKey = process.env.NEXT_PUBLIC_BOT_API_KEY || "";
-      const res = await fetch(`${botUrl}/send-message?key=${botKey}`, {
+      const sessionId = `${role}-${phone}-${Date.now()}`;
+      const res = await fetch(`${botUrl}/sessions?key=${botKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, message: initMessage }),
+        body: JSON.stringify({ sessionId, driverId: sessionId, name: phone, role }),
       });
-      if (!res.ok) throw new Error("Bot belum connected. Coba lagi nanti.");
-      setSent(true);
+      if (!res.ok) throw new Error("Server belum siap. Coba lagi.");
+      window.location.href = `/connect/${sessionId}?role=${role}`;
     } catch (e: any) {
-      setError(e.message || "Gagal kirim. Coba lagi.");
-    } finally { setSending(false); }
+      setError(e.message || "Gagal. Coba lagi.");
+    } finally { setLoading(false); }
   };
-
-  if (sent) {
-    return (
-      <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8 text-center">
-        <div className="text-4xl mb-4">✅</div>
-        <h3 className="text-xl font-bold mb-2">Cek WhatsApp kamu!</h3>
-        <p className="text-zinc-500">Bot Nemu Ojek sudah kirim pesan ke nomor kamu. Tinggal balas di sana.</p>
-        <button onClick={() => { setSent(false); setPhone(""); }} className="mt-4 text-sm text-green-600 hover:underline">Kirim ke nomor lain</button>
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
@@ -200,8 +189,8 @@ function WhatsAppCTA({ emoji, title, desc, buttonText, buttonColor, initMessage 
         />
       </div>
       {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-      <Button onClick={handleSend} disabled={sending || !phone} className={`${buttonColor} text-white rounded-xl h-11 px-6 font-semibold w-full disabled:opacity-50`}>
-        {sending ? "Mengirim..." : buttonText}
+      <Button onClick={handleConnect} disabled={loading || !phone} className={`${buttonColor} text-white rounded-xl h-11 px-6 font-semibold w-full disabled:opacity-50`}>
+        {loading ? "Memproses..." : buttonText}
       </Button>
     </div>
   );
@@ -384,19 +373,19 @@ export default function LandingPage() {
               <WhatsAppCTA
                 emoji="🛵"
                 title="Mau Pesan Ojek?"
-                desc="Masukin nomor WA kamu, bot langsung chat kamu di WhatsApp. Tinggal bilang mau ke mana."
-                buttonText="Pesan via WhatsApp"
+                desc="Masukin nomor WA, scan QR, bot langsung aktif di WhatsApp kamu. Tinggal bilang mau ke mana."
+                buttonText="Hubungkan WhatsApp"
                 buttonColor="bg-green-600 hover:bg-green-500"
-                initMessage={"Halo! 👋 Mau pesan ojek Nemu?\n\n📍 Share lokasi kamu atau ketik alamat jemput, lalu bilang mau ke mana.\n\nContoh: *gas ke Blok M*"}
+                role="passenger"
               />
 
               <WhatsAppCTA
                 emoji="🏍️"
                 title="Mau Jadi Driver?"
-                desc="Masukin nomor WA kamu, bot langsung bantu daftarin. Tanpa komisi, 100% penghasilan buat kamu."
-                buttonText="Daftar via WhatsApp"
+                desc="Masukin nomor WA, scan QR, bot bantu daftarin dan terima orderan langsung di WhatsApp kamu."
+                buttonText="Hubungkan WhatsApp"
                 buttonColor="bg-blue-600 hover:bg-blue-500"
-                initMessage={"Halo! 🏍️ Mau daftar jadi driver Nemu Ojek?\n\nSiap bantu kamu daftar. Boleh tahu nama lengkap kamu?"}
+                role="driver"
               />
             </div>
           </FadeIn>

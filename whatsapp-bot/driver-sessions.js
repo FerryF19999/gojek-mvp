@@ -60,7 +60,7 @@ async function syncSessionToConvex(sessionId, status, phone, qr) {
 /**
  * Create a new driver session (generates QR for scanning)
  */
-async function createDriverSession(sessionId, driverId, apiToken, name) {
+async function createDriverSession(sessionId, driverId, apiToken, name, role) {
   if (activeSessions.has(sessionId)) {
     console.log(`[driver-sessions] Session ${sessionId} already exists`);
     return activeSessions.get(sessionId);
@@ -74,6 +74,7 @@ async function createDriverSession(sessionId, driverId, apiToken, name) {
     driverId,
     apiToken,
     name,
+    role: role || "driver",
     phone: null,
     qr: null,
     connected: false,
@@ -131,22 +132,27 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         // Initialize driver state for message handling
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
 
-        // Send welcome message to the driver's own number
+        // Send welcome message to the user's own number (appears in "Message Yourself")
         if (phoneNumber) {
           const jid = `${phoneNumber}@s.whatsapp.net`;
+          const isDriver = sessionData.role === "driver";
+          const welcomeText = isDriver
+            ? `🏍️ *Nemu Ojek — Driver*\n\n` +
+              `Bot aktif ✅ Pesan dari bot muncul di chat ini.\n\n` +
+              `📋 *Perintah:*\n` +
+              `• *checkin* — Mulai shift\n` +
+              `• *checkout* — Selesai shift\n` +
+              `• *saldo* — Cek penghasilan\n` +
+              `• *terima* / *tolak* — Respon orderan\n\n` +
+              `Ketik *checkin* untuk mulai!`
+            : `🛵 *Nemu Ojek*\n\n` +
+              `Bot aktif ✅ Pesan dari bot muncul di chat ini.\n\n` +
+              `📍 *Cara pesan ojek:*\n` +
+              `• Ketik *gas ke [tujuan]* — langsung pesan\n` +
+              `• Atau ketik *pesan* untuk mulai step-by-step\n\n` +
+              `Contoh: *gas ke Blok M*`;
           try {
-            await sock.sendMessage(jid, {
-              text:
-                `🏍️ *Selamat datang di Nemu Ojek!*\n\n` +
-                `Bot driver kamu sudah aktif ✅\n\n` +
-                `📋 *Perintah:*\n` +
-                `• *checkin* — Mulai shift\n` +
-                `• *checkout* — Selesai shift\n` +
-                `• *saldo* — Cek penghasilan\n` +
-                `• *status* — Cek status\n` +
-                `• *help* — Bantuan\n\n` +
-                `Ketik *checkin* untuk mulai terima orderan!`,
-            });
+            await sock.sendMessage(jid, { text: welcomeText });
           } catch (e) {
             console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
           }
@@ -183,9 +189,19 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
       for (const m of messages) {
         if (!m.message) continue;
         const jid = m.key.remoteJid;
-        if (!jid || jid.endsWith("@g.us") || m.key.fromMe) continue;
+        if (!jid || jid.endsWith("@g.us")) continue;
 
-        // Detect live location sharing from driver → update GPS
+        // Determine if this is a self-chat ("Message Yourself")
+        const ownNumber = sessionData.phone;
+        const senderPhone = normalizePhone(jid.split("@")[0]);
+        const isSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
+
+        // For self-chat: only process messages FROM the user (fromMe = true)
+        // For regular chat: only process messages TO the user (fromMe = false)
+        if (isSelfChat && !m.key.fromMe) continue;  // Bot's own replies in self-chat, skip
+        if (!isSelfChat && m.key.fromMe) continue;   // Bot's outgoing msgs to others, skip
+
+        // Detect live location sharing → update GPS
         if (m.message.locationMessage || m.message.liveLocationMessage) {
           const loc = m.message.liveLocationMessage || m.message.locationMessage;
           if (loc.degreesLatitude && loc.degreesLongitude && sessionData.apiToken) {
@@ -193,7 +209,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
             updateDriverLocation(sessionData.apiToken, loc.degreesLatitude, loc.degreesLongitude)
               .catch((e) => console.warn(`[driver-gps] ${sessionId} location update failed:`, e.message));
           }
-          continue; // Don't process location as a text message
+          continue;
         }
 
         const text =
@@ -203,23 +219,31 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         if (!text) continue;
 
-        const phone = normalizePhone(jid.split("@")[0]);
-
-        // Only handle messages from the driver themselves
-        const driverPhone = sessionData.phone;
-        if (driverPhone && phone !== normalizePhone(driverPhone)) {
-          // Message from someone else chatting the driver - ignore bot handling
-          continue;
-        }
-
-        const spam = checkSpam(phone);
+        const spam = checkSpam(senderPhone);
         if (spam.blocked) continue;
 
-        logLine("IN-DRIVER", phone, text);
+        logLine(sessionData.role === "driver" ? "IN-DRIVER" : "IN-PASSENGER", senderPhone, text);
 
-        await enqueueIncoming(`driver-${sessionId}`, () =>
-          handleDriverMessage(sock, jid, sessionData.driverId, text)
-        );
+        if (sessionData.role === "passenger") {
+          // Route to passenger handler
+          const { handlePassenger } = require("./passenger-handler");
+          const { readSession } = require("./utils");
+          const session = readSession(senderPhone);
+
+          // Detect location in message
+          let locationMsg = null;
+          if (m.message.locationMessage) locationMsg = m.message.locationMessage;
+          if (m.message.liveLocationMessage) locationMsg = m.message.liveLocationMessage;
+
+          await enqueueIncoming(`passenger-${sessionId}`, () =>
+            handlePassenger(sock, jid, senderPhone, session, text, locationMsg)
+          );
+        } else {
+          // Route to driver handler
+          await enqueueIncoming(`driver-${sessionId}`, () =>
+            handleDriverMessage(sock, jid, sessionData.driverId, text)
+          );
+        }
       }
     });
   } catch (e) {
