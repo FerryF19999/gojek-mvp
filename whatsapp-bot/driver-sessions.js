@@ -12,8 +12,23 @@ const {
   fetchLatestBaileysVersion,
 } = require("@whiskeysockets/baileys");
 
-const { ensureDirs, normalizePhone, logLine, sendReply, checkSpam, enqueueIncoming } = require("./utils");
+const { ensureDirs, normalizePhone, logLine, checkSpam, enqueueIncoming, sleep } = require("./utils");
 const { handleDriverMessage, initDriverState } = require("./driver-handler");
+
+// Track bot's own sent message IDs to avoid processing them as user input
+const sentMessageIds = new Set();
+
+// Wrapper around sendReply that tracks sent message IDs
+async function sendBotReply(sock, jid, text) {
+  const sent = await sock.sendMessage(jid, { text });
+  if (sent?.key?.id) sentMessageIds.add(sent.key.id);
+  // Cleanup old IDs (keep last 500)
+  if (sentMessageIds.size > 500) {
+    const arr = [...sentMessageIds];
+    arr.slice(0, 250).forEach((id) => sentMessageIds.delete(id));
+  }
+  return sent;
+}
 
 const DRIVER_AUTHS_DIR = path.join(__dirname, "driver-auths");
 ensureDirs(DRIVER_AUTHS_DIR);
@@ -152,7 +167,7 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
               `• Atau ketik *pesan* untuk mulai step-by-step\n\n` +
               `Contoh: *gas ke Blok M*`;
           try {
-            await sock.sendMessage(jid, { text: welcomeText });
+            await sendBotReply(sock, jid, welcomeText);
           } catch (e) {
             console.warn(`[driver-sessions] Failed to send welcome to ${phoneNumber}:`, e.message);
           }
@@ -200,22 +215,14 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         const ownNumber = sessionData.phone;
         const senderPhone = normalizePhone(jid.split("@")[0]);
-        const isSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
+        const isLidSelfChat = jid.endsWith("@lid") && m.key.fromMe;
+        const isPhoneSelfChat = ownNumber && senderPhone === normalizePhone(ownNumber);
+        const isSelfChat = isLidSelfChat || isPhoneSelfChat;
 
-        // Debug log
-        const msgText = m.message.conversation || m.message.extendedTextMessage?.text || "[non-text]";
-        console.log(`[msg-debug] ${sessionId} | jid=${jid} | fromMe=${m.key.fromMe} | self=${isSelfChat} | own=${ownNumber} | sender=${senderPhone} | text=${msgText.slice(0,30)}`);
-
-        // In linked device mode, bot sends as fromMe=true and user also sends as fromMe=true
-        // The only way to differentiate: bot's replies have m.key.id that we track
-        // Simple approach: process ALL messages in self-chat, but skip bot's own sends
-        // by checking if the message was just sent by us (within 2 seconds)
+        // In self-chat (Message Yourself): process messages with fromMe=true (user typed)
+        // Bot's own replies are tracked and skipped via sentMessageIds
         if (isSelfChat) {
-          // Skip if this looks like our own bot reply (fromMe but no participant = bot sent it as linked device)
-          // Actually in linked device, user messages have fromMe=false and bot messages have fromMe=true
-          // So we want fromMe=false (user typed) in self-chat
-          // But some WhatsApp versions send user self-chat as fromMe=true
-          // Solution: process BOTH and let the handler be idempotent. Skip only status/broadcast.
+          if (sentMessageIds.has(m.key.id)) continue; // Skip bot's own replies
         } else {
           // Regular chat from someone else — only process if not from bot
           if (m.key.fromMe) continue;
@@ -244,8 +251,24 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
 
         logLine(sessionData.role === "driver" ? "IN-DRIVER" : "IN-PASSENGER", senderPhone, text);
 
+        // Wrap sock to track sent message IDs (for self-chat dedup)
+        const trackedSock = new Proxy(sock, {
+          get(target, prop) {
+            if (prop === "sendMessage") {
+              return async (...args) => {
+                const result = await target.sendMessage(...args);
+                if (result?.key?.id) sentMessageIds.add(result.key.id);
+                return result;
+              };
+            }
+            return target[prop];
+          },
+        });
+
+        // Use LID jid for self-chat replies
+        const replyJid = jid;
+
         if (sessionData.role === "passenger") {
-          // Route to passenger handler
           const { handlePassenger } = require("./passenger-handler");
           const { readSession } = require("./utils");
           const session = readSession(senderPhone);
@@ -256,12 +279,11 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
           if (m.message.liveLocationMessage) locationMsg = m.message.liveLocationMessage;
 
           await enqueueIncoming(`passenger-${sessionId}`, () =>
-            handlePassenger(sock, jid, senderPhone, session, text, locationMsg)
+            handlePassenger(trackedSock, replyJid, senderPhone, session, text, locationMsg)
           );
         } else {
-          // Route to driver handler
           await enqueueIncoming(`driver-${sessionId}`, () =>
-            handleDriverMessage(sock, jid, sessionData.driverId, text)
+            handleDriverMessage(trackedSock, replyJid, sessionData.driverId, text)
           );
         }
       }
