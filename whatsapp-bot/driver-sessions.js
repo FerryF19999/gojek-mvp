@@ -144,16 +144,32 @@ async function startDriverConnection(sessionId, authDir, sessionData) {
         console.log(`[driver-sessions] ✅ ${sessionId} connected (${phoneNumber})`);
         await syncSessionToConvex(sessionId, "connected", phoneNumber, null);
 
-        // Initialize driver state for message handling
+        // Load saved driver data from local file (persists across restarts)
+        const metaFile = path.join(DRIVER_AUTHS_DIR, sessionId, "_meta.json");
+        let savedMeta = null;
+        try {
+          if (fs.existsSync(metaFile)) {
+            savedMeta = JSON.parse(fs.readFileSync(metaFile, "utf-8"));
+            console.log(`[driver-sessions] Loaded saved meta for ${sessionId}: ${savedMeta.name || "?"}`);
+          }
+        } catch {}
+
+        if (savedMeta?.apiToken) {
+          sessionData.apiToken = savedMeta.apiToken;
+          sessionData.name = savedMeta.name;
+          const { setState } = require("./driver-handler");
+          setState(sessionData.driverId, { apiToken: savedMeta.apiToken, name: savedMeta.name });
+        }
+
         initDriverState(sessionData.driverId, sessionData.apiToken, sessionData.name);
 
-        // Send welcome message to the user's own number (appears in "Message Yourself")
+        // Send welcome message
         if (phoneNumber) {
           const jid = `${phoneNumber}@s.whatsapp.net`;
           const isDriver = sessionData.role === "driver";
           const { getDriverState } = require("./driver-handler");
           const driverState = getDriverState(sessionData.driverId);
-          const isRegistered = !!driverState.apiToken;
+          const isRegistered = !!driverState.apiToken || !!existingToken;
 
           let welcomeText;
           if (isDriver && isRegistered) {

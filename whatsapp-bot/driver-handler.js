@@ -224,6 +224,18 @@ async function handleDriverMessage(sock, jid, driverId, msg) {
               name: regName,
               regStep: null, regName: null, regPlate: null, regCity: null,
             });
+            // Save to local file for persistence across restarts
+            try {
+              const path = require("path");
+              const fs = require("fs");
+              const metaDir = path.join(__dirname, "driver-auths", driverId);
+              if (fs.existsSync(metaDir)) {
+                fs.writeFileSync(path.join(metaDir, "_meta.json"), JSON.stringify({
+                  apiToken: token, name: regName, plate: regPlate, city: regCity, phone,
+                  registeredAt: Date.now(),
+                }, null, 2));
+              }
+            } catch {}
             await sendReply(sock, jid,
               `✅ *Registrasi berhasil!*\n\n` +
               `Selamat datang, ${regName}! 🏍️\n` +
