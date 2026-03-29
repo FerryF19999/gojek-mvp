@@ -105,8 +105,8 @@ function detectIntent(text, session) {
   const priceMatch = t.match(/(?:berapa|harga|estimasi|ongkos|biaya|tarif)\s*(?:ke|sampai|menuju)?\s*(.+)/);
   if (priceMatch) return { intent: "price_check", destination: priceMatch[1].trim() };
 
-  // Book with destination: "gas ke X", "pesan ke X", "ojek ke X", "ke X dong"
-  const bookMatch = t.match(/(?:gas|gass+|pesan|ojek|book|antar|anter|mau ke|ke)\s+(.{2,})/);
+  // Book with destination: "gas ke X", "pesan ke X", "ojek ke X", "ke X dong", "tujuan X"
+  const bookMatch = t.match(/(?:gas|gass+|pesan|ojek|book|antar|anter|mau ke|ke|tujuan|menuju|arah)\s+(.{2,})/);
   if (bookMatch) {
     const dest = bookMatch[1].replace(/\b(dong|donk|ya|yah|yuk|aja|deh)\b/g, "").trim();
     if (dest.length >= 2) return { intent: "book_direct", destination: dest };
@@ -150,6 +150,11 @@ function detectIntent(text, session) {
   // If waiting for destination and text is not a command, treat as destination
   if (session?.state === "ASK_DESTINATION" && t.length >= 2) {
     return { intent: "destination", destination: t };
+  }
+
+  // If IDLE and text looks like a place name (2+ chars, not a question), treat as destination
+  if ((!session?.state || session?.state === "IDLE") && t.length >= 3 && !t.includes("?") && !/^\d+$/.test(t)) {
+    return { intent: "book_direct", destination: t };
   }
 
   return { intent: "unknown" };
