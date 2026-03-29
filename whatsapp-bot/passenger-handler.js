@@ -221,7 +221,14 @@ async function handlePassenger(sock, jid, phone, session, msg, locationMsg) {
   // ─── BOOKED state ───
   if (session.state === "BOOKED") {
     if (intent.intent === "cancel") {
-      await sendReply(sock, jid, T.cantCancel);
+      // Cancel ride and clear session
+      const rideCode = session.rideCode;
+      removeRideFromIndex(rideCode);
+      session.state = "IDLE";
+      session.rideCode = null;
+      session.data = { name: session.data?.name };
+      writeSession(phone, session);
+      await sendReply(sock, jid, `❌ Ride *${rideCode}* dibatalkan.\n\nMau pesan lagi? Ketik tujuan kamu.`);
       return;
     }
     if (intent.intent === "track") {
@@ -229,6 +236,20 @@ async function handlePassenger(sock, jid, phone, session, msg, locationMsg) {
       await sendReply(sock, jid, pick(T.rideActive(session.rideCode, url)));
       return;
     }
+    // Check if ride is actually still active
+    try {
+      const data = await getRideStatus(session.rideCode);
+      const status = (data.ride || data).status;
+      if (["cancelled", "completed", "expired"].includes(status)) {
+        removeRideFromIndex(session.rideCode);
+        session.state = "IDLE";
+        session.rideCode = null;
+        session.data = { name: session.data?.name };
+        writeSession(phone, session);
+        await sendReply(sock, jid, `Ride sebelumnya sudah selesai. Mau pesan lagi? Ketik tujuan kamu! 🏍️`);
+        return;
+      }
+    } catch {}
     const url = `${APP_URL}/track/${session.rideCode}`;
     await sendReply(sock, jid, pick(T.rideActive(session.rideCode, url)));
     return;
@@ -469,6 +490,19 @@ async function pollPassengerRideUpdates() {
       if (!status) continue;
 
       const url = `${APP_URL}/track/${rideCode}`;
+
+      // Auto-clear cancelled/expired rides
+      if (["cancelled", "expired"].includes(status)) {
+        const session = readSession(rec.phone);
+        if (session.rideCode === rideCode) {
+          session.state = "IDLE";
+          session.rideCode = null;
+          session.data = { name: session.data?.name };
+          writeSession(rec.phone, session);
+        }
+        delete rides[rideCode];
+        continue;
+      }
 
       if (status === "assigned" && !rec.assignedNotified) {
         const name = ride.driver?.name || "Driver";
