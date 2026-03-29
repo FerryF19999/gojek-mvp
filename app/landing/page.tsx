@@ -158,10 +158,8 @@ function WhatsAppCTA({ emoji, title, desc, buttonText, buttonColor, role }: {
     if (!phone || phone.length < 8) { setError("Nomor WA nggak valid"); return; }
     setLoading(true); setError("");
     try {
-      const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "";
-      const botKey = process.env.NEXT_PUBLIC_BOT_API_KEY || "";
       const sessionId = `${role}-${phone}-${Date.now()}`;
-      const res = await fetch(`${botUrl}/sessions?key=${botKey}`, {
+      const res = await fetch(`/api/bot/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, driverId: sessionId, name: phone, role }),

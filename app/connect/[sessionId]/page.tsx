@@ -18,12 +18,9 @@ export default function ConnectPage() {
   useEffect(() => {
     if (connected) return;
 
-    const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "";
-    const botKey = process.env.NEXT_PUBLIC_BOT_API_KEY || "";
-
     const poll = async () => {
       try {
-        const res = await fetch(`${botUrl}/sessions/${encodeURIComponent(sessionId)}?key=${botKey}`);
+        const res = await fetch(`/api/bot/sessions/${encodeURIComponent(sessionId)}`);
         if (!res.ok) { setError("Session tidak ditemukan"); return; }
         const data = await res.json();
         if (data.connected) {

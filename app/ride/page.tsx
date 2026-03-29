@@ -159,10 +159,8 @@ export default function RidePage() {
 
       // Send WhatsApp notification to passenger
       if (customerPhone && customerPhone !== "000") {
-        const botUrl = process.env.NEXT_PUBLIC_BOT_URL || "http://localhost:3001";
-        const botKey = process.env.NEXT_PUBLIC_BOT_API_KEY || "";
         const trackUrl = `${window.location.origin}/track/${rideCode}`;
-        fetch(`${botUrl}/send-message?key=${botKey}`, {
+        fetch(`/api/bot/send-message`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
