@@ -9,13 +9,11 @@
     "lint": "next lint",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy",
-    "wa:server": "npx tsx scripts/baileys-server.ts",
-    "wa:multi": "npx tsx scripts/baileys-multi-server.ts",
-    "whatsapp-bot": "node whatsapp-bot/index.js"
+    "telegram:setup": "curl -X POST http://localhost:3000/api/telegram/setup",
+    "telegram:poll": "node scripts/telegram-poll.js"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.17.4",
@@ -24,7 +22,6 @@
     "next": "14.2.5",
     "next-themes": "^0.4.6",
     "qrcode": "^1.5.4",
-    "qrcode-terminal": "^0.12.0",
     "qrcode.react": "^4.2.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",

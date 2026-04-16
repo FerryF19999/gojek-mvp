@@ -3,7 +3,7 @@
  * Only called for ~10% of messages that keyword matching can't handle
  */
 
-import { DriverWhatsappState } from "./state-machine";
+import type { DriverTelegramState } from "./state-machine";
 
 const MINIMAX_API_URL = "https://api.minimaxi.chat/v1/text/chatcompletion_v2";
 
@@ -12,7 +12,7 @@ interface AIResponse {
   suggestedAction?: string;
 }
 
-function buildSystemPrompt(state: DriverWhatsappState): string {
+function buildSystemPrompt(state: DriverTelegramState): string {
   const stateDescriptions: Record<string, string> = {
     unknown: "belum terdaftar",
     registering: "sedang mendaftar",
@@ -39,7 +39,7 @@ function buildSystemPrompt(state: DriverWhatsappState): string {
 
   const actions = availableActions[state.state]?.join(", ") || "HELP";
 
-  return `Kamu adalah asisten NEMU Ojek yang ramah dan membantu.
+  return `Kamu adalah asisten NEMU RIDE yang ramah dan membantu.
 Status driver saat ini: ${currentState}.
 Perintah yang tersedia: ${actions}.
 
@@ -54,11 +54,10 @@ Aturan:
 
 export async function getAIFallback(
   message: string,
-  state: DriverWhatsappState,
+  state: DriverTelegramState,
 ): Promise<AIResponse> {
   const apiKey = process.env.MINIMAX_API_KEY;
 
-  // If no API key configured, return generic help
   if (!apiKey) {
     console.warn("[AI Fallback] MINIMAX_API_KEY not configured, using generic reply");
     return {

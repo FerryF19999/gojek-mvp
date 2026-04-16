@@ -190,8 +190,9 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_createdAt", ["createdAt"]),
 
-  driverWhatsappState: defineTable({
-    phone: v.string(),
+  // Telegram driver state (chatId-based)
+  driverTelegramState: defineTable({
+    chatId: v.string(),
     driverId: v.optional(v.string()),
     apiToken: v.optional(v.string()),
     state: v.string(),
@@ -200,10 +201,9 @@ export default defineSchema({
     tempData: v.optional(v.any()),
     lastMessageAt: v.number(),
   })
-    .index("by_phone", ["phone"])
+    .index("by_chatId", ["chatId"])
     .index("by_driverId", ["driverId"]),
 
-  // Per-driver WhatsApp bot sessions (1 bot per driver model)
   ridePushSubscriptions: defineTable({
     rideCode: v.string(),
     endpoint: v.string(),
@@ -214,8 +214,9 @@ export default defineSchema({
     .index("by_rideCode", ["rideCode"])
     .index("by_rideCode_endpoint", ["rideCode", "endpoint"]),
 
-  passengerWhatsappState: defineTable({
-    phone: v.string(),
+  // Telegram passenger state (chatId-based)
+  passengerTelegramState: defineTable({
+    chatId: v.string(),
     state: v.string(),
     currentRideCode: v.optional(v.string()),
     tempData: v.optional(v.any()),
@@ -223,37 +224,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_phone", ["phone"])
+    .index("by_chatId", ["chatId"])
     .index("by_rideCode", ["currentRideCode"]),
-
-  driverWhatsappSessions: defineTable({
-    sessionId: v.string(),
-    driverId: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    status: v.union(
-      v.literal("qr_pending"),
-      v.literal("connecting"),
-      v.literal("connected"),
-      v.literal("disconnected"),
-      v.literal("logged_out"),
-    ),
-    qrCode: v.optional(v.string()),
-    apiToken: v.optional(v.string()),
-    lastConnectedAt: v.optional(v.number()),
-    registrationData: v.optional(v.object({
-      fullName: v.optional(v.string()),
-      vehicleType: v.optional(v.union(v.literal("motor"), v.literal("car"))),
-      vehicleBrand: v.optional(v.string()),
-      vehiclePlate: v.optional(v.string()),
-      city: v.optional(v.string()),
-    })),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_sessionId", ["sessionId"])
-    .index("by_driverId", ["driverId"])
-    .index("by_phone", ["phone"])
-    .index("by_status", ["status"]),
 
   adminSessions: defineTable({
     token: v.string(),
@@ -263,10 +235,4 @@ export default defineSchema({
     expiresAt: v.number(),
   }).index("by_token", ["token"]),
 
-  waBotStatus: defineTable({
-    qr: v.union(v.string(), v.null()),
-    connected: v.boolean(),
-    phoneNumber: v.optional(v.string()),
-    updatedAt: v.number(),
-  }),
 });

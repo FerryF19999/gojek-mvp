@@ -1,34 +1,35 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { QRCodeSVG } from 'qrcode.react'
+import { useState } from 'react'
 
-type WAStatus = {
-  connected: boolean
-  hasQR: boolean
-  qr: string | null
-  number?: string
-  error?: string
-}
+export default function TelegramSetupPage() {
+  const [status, setStatus] = useState<{ ok?: boolean; webhookUrl?: string; error?: string } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [botInfo, setBotInfo] = useState<{ username?: string; first_name?: string } | null>(null)
 
-export default function WASetupPage() {
-  const [status, setStatus] = useState<WAStatus>({ connected: false, hasQR: false, qr: null })
-
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const res = await fetch('/api/admin/wa-qr', { cache: 'no-store' })
-        const data = await res.json()
-        setStatus(data)
-      } catch {
-        // ignore polling errors, UI will keep showing last state
-      }
+  const setupWebhook = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/telegram/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      setStatus(data)
+    } catch (e: any) {
+      setStatus({ error: e.message })
     }
+    setLoading(false)
+  }
 
-    poll()
-    const interval = setInterval(poll, 3000)
-    return () => clearInterval(interval)
-  }, [])
+  const checkBot = async () => {
+    try {
+      const res = await fetch('/api/telegram/setup')
+      const data = await res.json()
+      if (data.ok) setBotInfo(data.bot)
+    } catch {}
+  }
 
   return (
     <div
@@ -43,54 +44,94 @@ export default function WASetupPage() {
         padding: '32px',
       }}
     >
-      <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>Setup WhatsApp Bot</h1>
+      <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>Setup Telegram Bot</h1>
+      <p style={{ color: '#9ca3af', marginBottom: '32px', textAlign: 'center' }}>
+        Klik tombol di bawah untuk mendaftarkan webhook Telegram
+      </p>
 
-      {status.connected ? (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
-          <p style={{ fontSize: '20px', color: '#4ade80' }}>Bot sudah konek!</p>
-          {status.number && <p style={{ color: '#9ca3af', marginTop: '8px' }}>Nomor: {status.number}</p>}
-          <a
-            href="/admin"
-            style={{
-              display: 'inline-block',
-              marginTop: '24px',
-              background: '#16a34a',
-              color: 'white',
-              padding: '12px 24px',
-              borderRadius: '10px',
-              textDecoration: 'none',
-              fontWeight: 'bold',
-            }}
-          >
-            Buka Admin Panel
-          </a>
-        </div>
-      ) : status.hasQR && status.qr ? (
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ color: '#9ca3af', marginBottom: '24px' }}>Scan QR ini dari WhatsApp untuk menghubungkan bot</p>
-          <div
-            style={{
-              background: 'white',
-              padding: '20px',
-              borderRadius: '16px',
-              display: 'inline-block',
-              marginBottom: '24px',
-            }}
-          >
-            <QRCodeSVG value={status.qr} size={256} />
-          </div>
-          <p style={{ color: '#6b7280', fontSize: '14px' }}>WA → Setelan → Perangkat Tertaut → Tautkan Perangkat</p>
-          <p style={{ color: '#6b7280', fontSize: '12px', marginTop: '8px' }}>Auto-refresh setiap 3 detik...</p>
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <p style={{ color: '#9ca3af' }}>{status.error || 'Menunggu QR dari bot...'}</p>
-          <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '8px' }}>Pastikan bot WA sudah dijalankan di server</p>
-          <p style={{ color: '#6b7280', fontSize: '12px', marginTop: '4px' }}>Auto-refresh setiap 3 detik...</p>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
+        <button
+          onClick={setupWebhook}
+          disabled={loading}
+          style={{
+            background: '#2563eb',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '10px',
+            border: 'none',
+            fontWeight: 'bold',
+            cursor: loading ? 'wait' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? 'Setting up...' : 'Setup Webhook'}
+        </button>
+
+        <button
+          onClick={checkBot}
+          style={{
+            background: '#374151',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '10px',
+            border: 'none',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+          }}
+        >
+          Check Bot Info
+        </button>
+      </div>
+
+      {status && (
+        <div style={{
+          padding: '16px 24px',
+          borderRadius: '12px',
+          background: status.ok ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          border: `1px solid ${status.ok ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          marginBottom: '16px',
+          textAlign: 'center',
+        }}>
+          {status.ok ? (
+            <>
+              <p style={{ color: '#4ade80', fontWeight: 'bold' }}>Webhook berhasil didaftarkan!</p>
+              {status.webhookUrl && (
+                <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px', fontFamily: 'monospace' }}>
+                  {status.webhookUrl}
+                </p>
+              )}
+            </>
+          ) : (
+            <p style={{ color: '#f87171' }}>Error: {status.error}</p>
+          )}
         </div>
       )}
+
+      {botInfo && (
+        <div style={{
+          padding: '16px 24px',
+          borderRadius: '12px',
+          background: 'rgba(59, 130, 246, 0.1)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          textAlign: 'center',
+        }}>
+          <p style={{ color: '#60a5fa', fontWeight: 'bold' }}>Bot: @{botInfo.username}</p>
+          <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '4px' }}>{botInfo.first_name}</p>
+        </div>
+      )}
+
+      <a
+        href="/admin"
+        style={{
+          display: 'inline-block',
+          marginTop: '24px',
+          color: '#9ca3af',
+          textDecoration: 'underline',
+          fontSize: '14px',
+        }}
+      >
+        Kembali ke Admin Panel
+      </a>
     </div>
   )
 }

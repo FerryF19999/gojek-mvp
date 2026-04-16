@@ -26,7 +26,7 @@ export default function CityPreviewMap({ cityName, center }: Props) {
       <Marker position={[center.lat, center.lng]} icon={cityIcon}>
         <Popup>
           <div className="font-semibold">{cityName}</div>
-          <div className="text-xs text-gray-600">Area launching Nemu Ojek</div>
+          <div className="text-xs text-gray-600">Area launching NEMU RIDE</div>
         </Popup>
       </Marker>
     </MapContainer>

@@ -11,9 +11,8 @@ import {
 /**
  * POST /api/ops/drivers/{driverId}/notify
  *
- * Sends a ride assignment notification to a driver via the configured webhook
- * (DRIVER_NOTIFICATION_WEBHOOK env var). This is a generic HTTP POST — the
- * actual WhatsApp/SMS delivery is handled by the webhook receiver.
+ * Sends a ride assignment notification to a driver.
+ * Tries Telegram first, then falls back to webhook if configured.
  *
  * Body:
  *   rideId        string  - Convex ride ID
@@ -53,10 +52,28 @@ export async function POST(req: NextRequest, { params }: { params: { driverId: s
       return NextResponse.json({ error: "Driver not found" }, { status: 404 });
     }
 
+    // Try Telegram notification first
+    try {
+      const { handleRideOffer } = await import("@/lib/telegram/bridge");
+      const sent = await handleRideOffer(driverId, rideCode!, {
+        customerName: "Penumpang",
+        pickupAddress: pickup!,
+        dropoffAddress: dropoff!,
+        price: estimatedFare ?? 0,
+      });
+
+      if (sent) {
+        return NextResponse.json({ ok: true, driverId, channel: "telegram" });
+      }
+    } catch (e) {
+      console.warn("[Notify] Telegram notification failed, trying webhook:", e);
+    }
+
+    // Fall back to webhook if configured
     const webhookUrl = process.env.DRIVER_NOTIFICATION_WEBHOOK;
     if (!webhookUrl) {
       return NextResponse.json(
-        { ok: true, note: "DRIVER_NOTIFICATION_WEBHOOK not configured, notification skipped" },
+        { ok: true, note: "No Telegram state or webhook configured, notification skipped" },
         { status: 200 },
       );
     }
@@ -90,7 +107,7 @@ export async function POST(req: NextRequest, { params }: { params: { driverId: s
       );
     }
 
-    return NextResponse.json({ ok: true, driverId, webhookStatus: res.status, payload });
+    return NextResponse.json({ ok: true, driverId, webhookStatus: res.status, channel: "webhook", payload });
   } catch (error) {
     const parsed = safeError(error);
     return NextResponse.json(parsed.body, { status: parsed.status });

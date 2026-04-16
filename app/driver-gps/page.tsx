@@ -177,7 +177,7 @@ function DriverGpsPage() {
         <div style={styles.card}>
           <h1 style={styles.title}>❌ Token Gak Ada</h1>
           <p style={styles.text}>
-            Link ini harus dibuka dari chat WhatsApp NEMU Ojek ya.
+            Link ini harus dibuka dari chat WhatsApp NEMU RIDE ya.
           </p>
         </div>
       </div>
@@ -187,7 +187,7 @@ function DriverGpsPage() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>🏍️ NEMU Ojek</h1>
+        <h1 style={styles.title}>🏍️ NEMU RIDE</h1>
         <h2 style={styles.subtitle}>Sharing Lokasi Driver</h2>
 
         {status === "idle" && (

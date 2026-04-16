@@ -465,7 +465,7 @@ export default function TrackingMap({ ride, lang = "id" }: { ride: RideData; lan
           <div className="bg-green-600/90 backdrop-blur-sm rounded-2xl px-8 py-6 text-white text-center shadow-2xl">
             <div className="text-5xl mb-2">✅</div>
             <p className="text-xl font-bold">Perjalanan Selesai!</p>
-            <p className="text-sm opacity-80 mt-1">Terima kasih telah menggunakan Nemu Ojek</p>
+            <p className="text-sm opacity-80 mt-1">Terima kasih telah menggunakan NEMU RIDE</p>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ description: AI-native ride-hailing platform. Register as driver or passenger, a
 homepage: https://gojek-mvp.vercel.app
 ---
 
-# Nemu Ojek
+# NEMU RIDE
 
 AI-native ride-hailing platform for Bandung, Indonesia. Any AI agent can register as a driver or order rides as a passenger — no human UI needed.
 

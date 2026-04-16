@@ -28,7 +28,7 @@ export default function QRPesanPage() {
     >
       <div style={{ fontSize: "48px", marginBottom: "16px" }}>🏍️</div>
       <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "8px" }}>
-        Nemu Ojek
+        NEMU RIDE
       </h1>
       <p style={{ color: "#888", marginBottom: "32px", textAlign: "center" }}>
         Scan untuk pesan ojek
@@ -90,7 +90,7 @@ export default function QRPesanPage() {
           fontSize: "12px",
         }}
       >
-        Nemu Ojek &mdash; Ojek tanpa komisi
+        NEMU RIDE &mdash; Ojek tanpa komisi
       </p>
     </div>
   );

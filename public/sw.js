@@ -13,10 +13,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data.json();
   } catch {
-    data = { title: "Nemu Ojek", body: event.data.text() };
+    data = { title: "NEMU RIDE", body: event.data.text() };
   }
 
-  const title = data.title || "Nemu Ojek";
+  const title = data.title || "NEMU RIDE";
   const options = {
     body: data.body || "Ada update ride baru",
     icon: data.icon || "/favicon.ico",

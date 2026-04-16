@@ -1,5 +1,5 @@
 /**
- * Intent Matcher — Keyword-based intent detection (handles 90% of messages)
+ * Intent Matcher — Keyword-based intent detection
  * Typo-tolerant, supports Bahasa Indonesia casual variants
  */
 
@@ -28,11 +28,8 @@ function normalize(text: string): string {
 
 function matchAny(text: string, keywords: string[]): boolean {
   for (const kw of keywords) {
-    // Exact match
     if (text === kw) return true;
-    // Starts with keyword + space (word boundary)
     if (text.startsWith(kw + " ")) return true;
-    // Contains keyword as whole word
     const regex = new RegExp(`(?:^|\\s|\\b)${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$|\\b)`);
     if (regex.test(text)) return true;
   }
@@ -85,22 +82,11 @@ export function matchIntent(rawText: string): Intent {
   return "TIDAK_DIKENAL";
 }
 
-/**
- * Check if text looks like a registration data input (name, plate, etc.)
- * rather than a command. Used when driver is in registration flow.
- */
 export function isRegistrationInput(text: string): boolean {
-  const t = normalize(text);
-  // If it matches a known intent, it's NOT registration input
   const intent = matchIntent(text);
-  // During registration, most free-text is data input
-  // Only HELP and BANTUAN should break out of registration
   return intent === "TIDAK_DIKENAL" || intent === "KONFIRMASI";
 }
 
-/**
- * Extract vehicle type from text
- */
 export function extractVehicleType(text: string): "motor" | "car" | null {
   const t = normalize(text);
   if (matchAny(t, ["motor", "mtor", "motr", "sepeda motor", "roda 2", "roda dua"])) return "motor";
@@ -108,9 +94,6 @@ export function extractVehicleType(text: string): "motor" | "car" | null {
   return null;
 }
 
-/**
- * Extract payment method from text
- */
 export function extractPaymentMethod(text: string): { method: string; display: string } | null {
   const t = normalize(text);
   if (matchAny(t, ["1", "ovo"])) return { method: "ovo", display: "OVO" };

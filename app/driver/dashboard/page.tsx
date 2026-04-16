@@ -201,9 +201,9 @@ function DriverDashboard() {
         <div style={styles.card}>
           <h1 style={styles.title}>❌ Token Diperlukan</h1>
           <p style={styles.text}>
-            Buka halaman ini dari link yang dikirim di WhatsApp, atau tambahkan ?token=YOUR_TOKEN di URL.
+            Buka halaman ini dari link yang dikirim di Telegram, atau tambahkan ?token=YOUR_TOKEN di URL.
           </p>
-          <a href="/driver/register" style={styles.linkBtn}>Daftar Jadi Driver →</a>
+          <a href="/driver/signup" style={styles.linkBtn}>Daftar Jadi Driver →</a>
         </div>
       </div>
     );
@@ -227,7 +227,7 @@ function DriverDashboard() {
         <div style={styles.card}>
           <h1 style={styles.title}>❌ Error</h1>
           <p style={styles.errorText}>{error}</p>
-          <a href="/driver/register" style={styles.linkBtn}>Daftar Ulang →</a>
+          <a href="/driver/signup" style={styles.linkBtn}>Daftar Ulang →</a>
         </div>
       </div>
     );
@@ -238,7 +238,7 @@ function DriverDashboard() {
       <div style={styles.card}>
         {/* Header */}
         <div style={styles.header}>
-          <h1 style={styles.logo}>🏍️ NEMU Ojek</h1>
+          <h1 style={styles.logo}>🏍️ NEMU RIDE</h1>
           <p style={styles.subtitle}>Dashboard Driver</p>
         </div>
 
@@ -308,21 +308,21 @@ function DriverDashboard() {
           )}
         </div>
 
-        {/* WhatsApp Connection */}
+        {/* Telegram Connection */}
         <div style={styles.waSection}>
           <div style={styles.waBadge}>
             <span style={{
               ...styles.statusDot,
-              background: session?.status === "connected" ? "#22c55e" : "#ef4444",
+              background: session?.status === "connected" ? "#22c55e" : "#9ca3af",
               width: 8,
               height: 8,
             }} />
-            <span style={{ color: session?.status === "connected" ? "#22c55e" : "#ef4444", fontWeight: 600, fontSize: 13 }}>
-              WhatsApp {session?.status === "connected" ? "Terhubung ✅" : "Terputus ❌"}
+            <span style={{ color: session?.status === "connected" ? "#22c55e" : "#9ca3af", fontWeight: 600, fontSize: 13 }}>
+              Telegram {session?.status === "connected" ? "Terhubung ✅" : "Belum Terhubung"}
             </span>
           </div>
           {session?.status !== "connected" && (
-            <a href="/driver/register" style={styles.reconnectLink}>Hubungkan ulang →</a>
+            <a href="/driver/signup" style={styles.reconnectLink}>Hubungkan →</a>
           )}
         </div>
 

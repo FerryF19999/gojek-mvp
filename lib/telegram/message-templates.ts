@@ -6,7 +6,7 @@
 export const templates = {
   // === REGISTRATION ===
   welcome: () =>
-    `🏍️ Halo! Mau jadi driver NEMU Ojek?\nKetik nama lengkap kamu:`,
+    `🏍️ Halo! Mau jadi driver NEMU RIDE?\nKetik nama lengkap kamu:`,
 
   askVehicleType: (name: string) =>
     `Salam kenal ${name}! 👋\nPake motor atau mobil?`,
@@ -39,7 +39,7 @@ export const templates = {
     `Oke! Cek dulu ya datanya:\n\n👤 ${data.name}\n🏍️ ${data.vehicle} (${data.plate})\n💳 ${data.paymentMethod} ${data.paymentNumber}\n\nUdah bener? Ketik OKE`,
 
   registrationSuccess: (name: string) =>
-    `🎉 Selamat ${name}! Udah terdaftar!\n\nGampang kok cara pakainya:\n\n✅ Ketik MULAI = siap terima order\n⛔ Ketik STOP = istirahat\n💰 Ketik GAJI = cek penghasilan\n❓ Ketik HELP = butuh bantuan\n\nMau langsung mulai? Ketik MULAI`,
+    `🎉 Selamat ${name}! Kamu udah resmi jadi driver NEMU RIDE!\n\nGampang kok cara pakainya:\n\n✅ /mulai — siap terima order\n⛔ /stop — istirahat\n💰 /gaji — cek penghasilan\n📊 /status — cek status kamu\n❓ /help — bantuan\n\nMau langsung mulai? Ketik /mulai`,
 
   registrationFailed: (error: string) =>
     `❌ Maaf, pendaftaran gagal: ${error}\nCoba lagi nanti ya, atau ketik HELP buat bantuan.`,
@@ -123,7 +123,7 @@ export const templates = {
 
   // === HELP ===
   help: () =>
-    `Gampang kok! 😊\n\nMULAI → siap terima order\nSTOP  → istirahat\nGAJI  → cek penghasilan\nTARIK → tarik saldo\n\nKalau lagi order:\nSAMPE → udah di lokasi jemput\nJALAN → penumpang udah naik\nDONE  → udah nyampe tujuan\n\nAda yang mau ditanya lagi?`,
+    `📖 Bantuan NEMU RIDE\n\nPerintah driver:\n/mulai → online (siap terima order)\n/stop → offline (istirahat)\n/gaji → cek penghasilan\nTARIK → tarik saldo\n\nKalau lagi order:\nSAMPE → udah di lokasi jemput\nJALAN → penumpang udah naik\nDONE → udah nyampe tujuan\n\nKetik /status buat cek status kamu.\nKetik /start buat kembali ke menu utama.`,
 
   // === ERRORS ===
   invalidState: (expected: string) =>

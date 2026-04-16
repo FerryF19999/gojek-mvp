@@ -1,29 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function RidePage() {
-  const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleConnect = useCallback(async () => {
-    if (!phone || phone.length < 8) { setError("Nomor WA nggak valid"); return; }
-    setLoading(true); setError("");
-    try {
-      const sessionId = `passenger-${phone}-${Date.now()}`;
-      const res = await fetch(`/api/bot/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, driverId: sessionId, name: phone, role: "passenger" }),
-      });
-      if (!res.ok) throw new Error("Server belum siap. Coba lagi.");
-      window.location.href = `/connect/${sessionId}?role=passenger`;
-    } catch (e: any) {
-      setError(e.message || "Gagal. Coba lagi.");
-    } finally { setLoading(false); }
-  }, [phone]);
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "NemuOjekBot";
+  const deepLink = `https://t.me/${botUsername}?start=passenger`;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -32,45 +13,30 @@ export default function RidePage() {
           <div className="text-5xl mb-4">🛵</div>
           <h1 className="text-3xl font-bold mb-2">Pesan Ojek</h1>
           <p className="text-white/50">
-            Masukin nomor WA, scan QR, langsung pesan ojek di WhatsApp.
+            Klik tombol di bawah, pesan ojek langsung di Telegram.
             <br />Bilang aja mau ke mana — bot urus semuanya.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 space-y-5">
-          <div>
-            <label className="block text-sm text-white/60 mb-2">Nomor WhatsApp</label>
-            <div className="flex gap-2">
-              <span className="flex items-center rounded-xl border border-white/10 bg-black/40 px-3 text-white/50 text-sm">+62</span>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                placeholder="812-3456-7890"
-                className="flex-1 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-green-500/40 placeholder:text-white/20"
-              />
-            </div>
-          </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 space-y-5 text-center">
+          <a href={deepLink} target="_blank" rel="noreferrer">
+            <Button className="w-full bg-green-600 hover:bg-green-500 text-white rounded-xl h-12 font-semibold text-base">
+              Pesan via Telegram
+            </Button>
+          </a>
 
-          {error && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-red-400 text-sm">{error}</div>
-          )}
-
-          <Button
-            onClick={handleConnect}
-            disabled={loading || !phone || phone.length < 8}
-            className="w-full bg-green-600 hover:bg-green-500 text-white rounded-xl h-12 font-semibold text-base disabled:opacity-50"
-          >
-            {loading ? "Memproses..." : "Hubungkan WhatsApp"}
-          </Button>
+          <p className="text-white/40 text-sm">
+            Atau cari <strong className="text-white/70">@{botUsername}</strong> di Telegram
+          </p>
         </div>
 
         <div className="mt-8 rounded-xl bg-white/[0.02] border border-white/5 p-5">
           <h3 className="text-sm font-medium mb-3">Cara kerjanya:</h3>
           <ol className="text-white/50 text-sm space-y-2 list-decimal list-inside">
-            <li>Masukin nomor WA kamu di atas</li>
-            <li>Scan QR code yang muncul di WhatsApp (Linked Devices)</li>
-            <li>Bot aktif — ketik <b>gas ke [tujuan]</b> untuk pesan ojek</li>
+            <li>Klik tombol &quot;Pesan via Telegram&quot; di atas</li>
+            <li>Ketik <b>PESAN</b> di chat bot</li>
+            <li>Bot akan tanya: nama, dari mana, ke mana, bayar pakai apa</li>
+            <li>Driver akan dipilih otomatis, kamu tinggal tunggu</li>
           </ol>
         </div>
 
@@ -93,7 +59,7 @@ export default function RidePage() {
         </div>
 
         <p className="mt-6 text-center text-white/20 text-xs">
-          Nemu Ojek — Ojek tanpa komisi
+          NEMU RIDE — Ojek tanpa komisi
         </p>
       </div>
     </div>

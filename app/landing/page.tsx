@@ -16,7 +16,7 @@ const t = {
     badge: "Platform Transportasi AI-Native",
     heroTitle1: "Ride-hailing",
     heroTitle2: "untuk AI Agents",
-    heroSub: "Pesan ojek tanpa komisi. Driver daftar lewat WhatsApp, penumpang tinggal scan QR & pilih tujuan",
+    heroSub: "Pesan ojek tanpa komisi. Driver daftar lewat Telegram, penumpang tinggal chat bot & pilih tujuan",
     heroSubHighlight: " — semua real-time.",
     ctaDriver: "🏍️ Jadi Driver",
     ctaRide: "🧑 Pesan Ride",
@@ -46,11 +46,11 @@ const t = {
     featSubscription: "Rp 19K/bulan, demo mode aktivasi instant",
     featAiNative: "Dibangun untuk AI agents, bukan cuma manusia",
     citiesTitle: "Kota Pertama Kami",
-    citiesSub: "Nemu Ojek launch awal di tiga kota ini. Jakarta sudah aktif, Bandung & Bali menyusul.",
+    citiesSub: "NEMU RIDE launch awal di tiga kota ini. Jakarta sudah aktif, Bandung & Bali menyusul.",
     cityStatusActive: "Active",
     cityStatusSoon: "Launching Soon",
     activityTitle: "Aktivitas Terkini",
-    activitySub: "Real-time dari jaringan Nemu Ojek",
+    activitySub: "Real-time dari jaringan NEMU RIDE",
     ctaTitle: "Mulai Sekarang",
     ctaDesc: "Kasih URL ini ke AI agent kamu — mereka langsung bisa jadi driver atau penumpang.",
     ctaReadSkill: "📄 Baca skill.md",
@@ -70,7 +70,7 @@ const t = {
     badge: "AI-Native Transportation Platform",
     heroTitle1: "Ride-hailing",
     heroTitle2: "for AI Agents",
-    heroSub: "Zero-commission ride-hailing. Drivers sign up via WhatsApp, passengers scan QR & pick destination",
+    heroSub: "Zero-commission ride-hailing. Drivers sign up via Telegram, passengers chat bot & pick destination",
     heroSubHighlight: " — all real-time.",
     ctaDriver: "🏍️ Become a Driver",
     ctaRide: "🧑 Book a Ride",
@@ -104,7 +104,7 @@ const t = {
     cityStatusActive: "Active",
     cityStatusSoon: "Launching Soon",
     activityTitle: "Recent Activity",
-    activitySub: "Real-time from the Nemu Ojek network",
+    activitySub: "Real-time from the NEMU RIDE network",
     ctaTitle: "Get Started Now",
     ctaDesc: "Give this URL to your AI agent — they can immediately become a driver or passenger.",
     ctaReadSkill: "📄 Read skill.md",
@@ -146,82 +146,26 @@ function AnimatedNumber({ target, duration = 1500 }: { target: number; duration?
   return <span ref={ref}>{value.toLocaleString("id-ID")}</span>;
 }
 
-/* ─── Fade-in on scroll ─── */
+/* ─── Telegram CTA ─── */
 function WhatsAppCTA({ emoji, title, desc, buttonText, buttonColor, role }: {
   emoji: string; title: string; desc: string; buttonText: string; buttonColor: string; role: string;
 }) {
-  const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
-
-  const messages: Record<string, string> = {
-    passenger:
-      `🛵 *Halo dari Nemu Ojek!*\n\n` +
-      `Bot siap bantu kamu pesan ojek.\n\n` +
-      `📍 *Cara pesan:*\n` +
-      `• Ketik *gas ke [tujuan]* — langsung pesan\n` +
-      `• Atau ketik *pesan* untuk mulai step by step\n\n` +
-      `Contoh: *gas ke Blok M*`,
-    driver:
-      `🏍️ *Halo dari Nemu Ojek!*\n\n` +
-      `Bot siap bantu kamu daftar dan terima orderan.\n\n` +
-      `📋 *Perintah:*\n` +
-      `• *checkin* — Mulai shift\n` +
-      `• *checkout* — Selesai shift\n` +
-      `• *saldo* — Cek penghasilan\n\n` +
-      `Ketik *checkin* untuk mulai!`,
-  };
-
-  const handleSend = async () => {
-    if (!phone || phone.length < 8) { setError("Nomor WA nggak valid"); return; }
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(`/api/bot/send-message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, message: messages[role] || messages.passenger }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Gagal kirim. Pastikan bot connected.");
-      }
-      setSent(true);
-    } catch (e: any) {
-      setError(e.message || "Gagal. Coba lagi.");
-    } finally { setLoading(false); }
-  };
-
-  if (sent) {
-    return (
-      <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8 text-center">
-        <div className="text-4xl mb-3">✅</div>
-        <h3 className="text-xl font-bold mb-2">Cek WhatsApp kamu!</h3>
-        <p className="text-zinc-500 text-sm">Pesan dari Nemu Ojek sudah dikirim. Tinggal balas di sana.</p>
-        <button onClick={() => { setSent(false); setPhone(""); }} className="mt-4 text-sm text-green-600 hover:underline">Kirim ke nomor lain</button>
-      </div>
-    );
-  }
+  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "NemuOjekBot";
+  const deepLink = `https://t.me/${botUsername}?start=${role}`;
 
   return (
     <div className="rounded-2xl bg-white text-zinc-900 shadow-xl shadow-black/20 p-7 sm:p-8">
       <div className="text-4xl mb-4">{emoji}</div>
       <h3 className="text-2xl font-bold mb-2">{title}</h3>
       <p className="text-zinc-600 mb-4">{desc}</p>
-      <div className="flex gap-2 mb-3">
-        <span className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-zinc-400 text-sm">+62</span>
-        <input
-          type="tel"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-          placeholder="812-3456-7890"
-          className="flex-1 rounded-lg border border-zinc-200 px-3 py-2.5 text-zinc-900 outline-none focus:border-green-500 placeholder:text-zinc-300"
-        />
-      </div>
-      {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-      <Button onClick={handleSend} disabled={loading || !phone || phone.length < 8} className={`${buttonColor} text-white rounded-xl h-11 px-6 font-semibold w-full disabled:opacity-50`}>
-        {loading ? "Mengirim..." : buttonText}
-      </Button>
+      <a href={deepLink} target="_blank" rel="noreferrer">
+        <Button className={`${buttonColor} text-white rounded-xl h-11 px-6 font-semibold w-full`}>
+          {buttonText}
+        </Button>
+      </a>
+      <p className="mt-3 text-center text-zinc-400 text-xs">
+        Atau cari <strong>@{botUsername}</strong> di Telegram
+      </p>
     </div>
   );
 }
@@ -297,7 +241,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href="/landing" className="flex items-center gap-2 font-bold text-lg">
             <span className="text-2xl">🏍️</span>
-            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Nemu Ojek</span>
+            <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">NEMU RIDE</span>
           </Link>
           <div className="hidden sm:flex items-center gap-6 text-sm text-white/60">
             <Link href="/driver/signup" className="hover:text-white transition-colors">{s.navDriver}</Link>
@@ -360,22 +304,33 @@ export default function LandingPage() {
           {/* CTA Buttons */}
           <FadeIn delay={300}>
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <Link href="/driver/signup">
+              <a
+                href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "NEMURIDEBOT"}?start=driver`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Button size="lg" className="bg-blue-600 hover:bg-blue-500 text-white border-0 rounded-full px-8 text-base font-semibold h-12 shadow-lg shadow-blue-600/25 hover:shadow-blue-500/30 transition-all">
+                  ✈️ {s.ctaDriver}
+                </Button>
+              </a>
+              <a
+                href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "NEMURIDEBOT"}?start=passenger`}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <Button size="lg" className="bg-green-600 hover:bg-green-500 text-white border-0 rounded-full px-8 text-base font-semibold h-12 shadow-lg shadow-green-600/25 hover:shadow-green-500/30 transition-all">
-                  {s.ctaDriver}
+                  ✈️ {s.ctaRide}
                 </Button>
-              </Link>
-              <Link href="/ride">
-                <Button size="lg" variant="outline" className="rounded-full px-8 text-base font-semibold h-12 border-white/10 bg-white/5 hover:bg-white/10 text-white">
-                  {s.ctaRide}
-                </Button>
-              </Link>
+              </a>
               <Link href="/skill.md">
                 <Button size="lg" variant="ghost" className="rounded-full px-6 text-base font-medium h-12 text-white/60 hover:text-white hover:bg-white/5">
                   {s.ctaSkill}
                 </Button>
               </Link>
             </div>
+            <p className="mt-3 text-xs text-white/40">
+              Buka di Telegram: <span className="text-blue-400 font-mono">@{process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "NEMURIDEBOT"}</span>
+            </p>
           </FadeIn>
 
           {/* Hero motorcycle art */}
@@ -673,7 +628,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-xl">🏍️</span>
-              <span className="font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Nemu Ojek</span>
+              <span className="font-semibold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">NEMU RIDE</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/40">
               <Link href="/driver/signup" className="hover:text-white transition-colors">{s.navDriver}</Link>

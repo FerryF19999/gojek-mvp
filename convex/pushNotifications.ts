@@ -44,30 +44,31 @@ export const sendRideStatusPush = internalAction({
     if (!subscriptions.length) return;
 
     const payload = JSON.stringify({
-      title: "Nemu Ojek",
+      title: "NEMU RIDE",
       body,
       url: `/track/${args.rideCode}`,
       rideCode: args.rideCode,
       status: args.status,
     });
 
-    const passengerState = await ctx.runQuery((api as any).passengerWhatsapp.getByRideCode, {
+    // Send Telegram status update to passenger if they have a Telegram session
+    const passengerState = await ctx.runQuery((api as any).passengerTelegram.getByRideCode, {
       rideCode: args.rideCode,
     });
 
-    if (passengerState?.phone) {
+    if (passengerState?.chatId) {
       const text = `${body}\nTrack: ${APP_URL}/track/${args.rideCode}`;
-      try {
-        await fetch(`${APP_URL}/api/whatsapp/send`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(process.env.WHATSAPP_WEBHOOK_SECRET ? { "x-webhook-secret": process.env.WHATSAPP_WEBHOOK_SECRET } : {}),
-          },
-          body: JSON.stringify({ phone: passengerState.phone, text }),
-        });
-      } catch (e) {
-        console.warn("[push] Failed sending WA status update", e);
+      const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
+      if (telegramToken) {
+        try {
+          await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: passengerState.chatId, text }),
+          });
+        } catch (e) {
+          console.warn("[push] Failed sending Telegram status update", e);
+        }
       }
     }
 

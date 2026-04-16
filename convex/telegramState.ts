@@ -1,17 +1,18 @@
 /**
- * Convex functions for WhatsApp driver state management
+ * Convex functions for Telegram driver state management
+ * Uses chatId (Telegram user ID) as the primary key instead of phone number
  */
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 // ─── Queries ───
 
-export const getByPhone = query({
-  args: { phone: v.string() },
+export const getByChatId = query({
+  args: { chatId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
-      .query("driverWhatsappState")
-      .withIndex("by_phone", (q) => q.eq("phone", args.phone))
+      .query("driverTelegramState")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
       .first();
   },
 });
@@ -20,7 +21,7 @@ export const getByDriverId = query({
   args: { driverId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
-      .query("driverWhatsappState")
+      .query("driverTelegramState")
       .withIndex("by_driverId", (q) => q.eq("driverId", args.driverId))
       .first();
   },
@@ -29,7 +30,7 @@ export const getByDriverId = query({
 export const listAll = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("driverWhatsappState").collect();
+    return await ctx.db.query("driverTelegramState").collect();
   },
 });
 
@@ -37,7 +38,7 @@ export const listOnline = query({
   args: {},
   handler: async (ctx) => {
     return await ctx.db
-      .query("driverWhatsappState")
+      .query("driverTelegramState")
       .filter((q) => q.eq(q.field("state"), "online"))
       .collect();
   },
@@ -47,7 +48,7 @@ export const listOnline = query({
 
 export const upsert = mutation({
   args: {
-    phone: v.string(),
+    chatId: v.string(),
     driverId: v.optional(v.string()),
     apiToken: v.optional(v.string()),
     state: v.optional(v.string()),
@@ -58,14 +59,13 @@ export const upsert = mutation({
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query("driverWhatsappState")
-      .withIndex("by_phone", (q) => q.eq("phone", args.phone))
+      .query("driverTelegramState")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
       .first();
 
     const now = args.lastMessageAt || Date.now();
 
     if (existing) {
-      // Update only provided fields
       const patch: Record<string, any> = { lastMessageAt: now };
       if (args.state !== undefined) patch.state = args.state;
       if (args.driverId !== undefined) patch.driverId = args.driverId;
@@ -77,9 +77,8 @@ export const upsert = mutation({
       await ctx.db.patch(existing._id, patch);
       return existing._id;
     } else {
-      // Create new
-      return await ctx.db.insert("driverWhatsappState", {
-        phone: args.phone,
+      return await ctx.db.insert("driverTelegramState", {
+        chatId: args.chatId,
         driverId: args.driverId,
         apiToken: args.apiToken,
         state: args.state || "unknown",
@@ -94,13 +93,13 @@ export const upsert = mutation({
 
 export const updateLastMessage = mutation({
   args: {
-    phone: v.string(),
+    chatId: v.string(),
     lastMessageAt: v.number(),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query("driverWhatsappState")
-      .withIndex("by_phone", (q) => q.eq("phone", args.phone))
+      .query("driverTelegramState")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
       .first();
 
     if (existing) {
@@ -111,14 +110,14 @@ export const updateLastMessage = mutation({
 
 export const updateState = mutation({
   args: {
-    phone: v.string(),
+    chatId: v.string(),
     state: v.string(),
     currentRideCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query("driverWhatsappState")
-      .withIndex("by_phone", (q) => q.eq("phone", args.phone))
+      .query("driverTelegramState")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
       .first();
 
     if (existing) {
@@ -134,12 +133,12 @@ export const updateState = mutation({
   },
 });
 
-export const deleteByPhone = mutation({
-  args: { phone: v.string() },
+export const deleteByChatId = mutation({
+  args: { chatId: v.string() },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query("driverWhatsappState")
-      .withIndex("by_phone", (q) => q.eq("phone", args.phone))
+      .query("driverTelegramState")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
       .first();
 
     if (existing) {

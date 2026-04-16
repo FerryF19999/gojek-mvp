@@ -1,6 +1,6 @@
 /**
- * State Machine — Driver state transitions for WhatsApp Bridge
- * 
+ * State Machine — Driver state transitions
+ *
  * States: unknown → registering → idle → online → offered → picking_up → at_pickup → on_ride → online
  */
 
@@ -26,8 +26,8 @@ export type RegistrationStep =
   | "confirm"
   | null;
 
-export interface DriverWhatsappState {
-  phone: string;
+export interface DriverTelegramState {
+  chatId: string;
   driverId?: string;
   apiToken?: string;
   state: DriverState;
@@ -42,7 +42,7 @@ export interface StateTransition {
   registrationStep?: RegistrationStep;
   currentRideCode?: string;
   tempData?: Record<string, any>;
-  action?: string; // API action to perform
+  action?: string;
 }
 
 import { Intent } from "./intent-matcher";
@@ -51,7 +51,7 @@ import { Intent } from "./intent-matcher";
  * Determine what state transition should happen based on current state + intent
  */
 export function getTransition(
-  state: DriverWhatsappState,
+  state: DriverTelegramState,
   intent: Intent,
 ): StateTransition | null {
   const s = state.state;
@@ -59,19 +59,14 @@ export function getTransition(
   switch (s) {
     case "unknown":
       if (intent === "DAFTAR") {
-        return {
-          newState: "registering",
-          registrationStep: "name",
-        };
+        return { newState: "registering", registrationStep: "name" };
       }
       if (intent === "BANTUAN") {
         return { newState: "unknown", action: "SHOW_HELP" };
       }
-      // Anything else → prompt to register
       return { newState: "unknown", action: "NEED_REGISTRATION" };
 
     case "registering":
-      // Registration is handled separately by the bridge
       return null;
 
     case "idle":
@@ -80,7 +75,7 @@ export function getTransition(
       if (intent === "BANTUAN") return { newState: "idle", action: "SHOW_HELP" };
       if (intent === "TARIK") return { newState: "idle", action: "WITHDRAW" };
       if (intent === "DAFTAR") return { newState: "idle", action: "ALREADY_REGISTERED" };
-      return null; // → AI fallback
+      return null;
 
     case "online":
       if (intent === "GO_OFFLINE") return { newState: "idle", action: "GO_OFFLINE" };
@@ -89,33 +84,32 @@ export function getTransition(
       if (intent === "TARIK") return { newState: "online", action: "WITHDRAW" };
       if (intent === "GO_ONLINE") return { newState: "online", action: "ALREADY_ONLINE" };
       if (intent === "DAFTAR") return { newState: "online", action: "ALREADY_REGISTERED" };
-      return null; // → AI fallback
+      return null;
 
     case "offered":
       if (intent === "TERIMA") return { newState: "picking_up", action: "ACCEPT_RIDE" };
       if (intent === "TOLAK") return { newState: "online", action: "DECLINE_RIDE" };
       if (intent === "PENGHASILAN") return { newState: "offered", action: "SHOW_EARNINGS" };
       if (intent === "BANTUAN") return { newState: "offered", action: "SHOW_HELP" };
-      // Ignore other intents during offer
       return { newState: "offered", action: "WAITING_RESPONSE" };
 
     case "picking_up":
       if (intent === "TIBA") return { newState: "at_pickup", action: "ARRIVE_PICKUP" };
       if (intent === "PENGHASILAN") return { newState: "picking_up", action: "SHOW_EARNINGS" };
       if (intent === "BANTUAN") return { newState: "picking_up", action: "SHOW_HELP" };
-      return null; // → AI fallback (e.g., "orangnya gak ada")
+      return null;
 
     case "at_pickup":
       if (intent === "JEMPUT") return { newState: "on_ride", action: "START_RIDE" };
       if (intent === "PENGHASILAN") return { newState: "at_pickup", action: "SHOW_EARNINGS" };
       if (intent === "BANTUAN") return { newState: "at_pickup", action: "SHOW_HELP" };
-      return null; // → AI fallback
+      return null;
 
     case "on_ride":
       if (intent === "SELESAI") return { newState: "online", action: "COMPLETE_RIDE" };
       if (intent === "PENGHASILAN") return { newState: "on_ride", action: "SHOW_EARNINGS" };
       if (intent === "BANTUAN") return { newState: "on_ride", action: "SHOW_HELP" };
-      return null; // → AI fallback
+      return null;
 
     default:
       return null;

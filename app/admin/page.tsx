@@ -151,7 +151,7 @@ export default function AdminPage() {
       <main className="mx-auto max-w-3xl p-6">
         <h1 className="text-2xl font-semibold">Admin Login</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Scan QR ini dengan WhatsApp untuk masuk sebagai admin.
+          Scan QR atau gunakan Telegram untuk masuk sebagai admin.
         </p>
 
         <div className="mt-8 rounded-xl border p-6 text-center">
@@ -162,7 +162,7 @@ export default function AdminPage() {
               <div className="mx-auto w-fit rounded-lg bg-white p-3">
                 <QRCodeSVG value={qrContent} size={240} />
               </div>
-              <p className="mt-4 text-sm text-gray-700">Menunggu verifikasi via WhatsApp...</p>
+              <p className="mt-4 text-sm text-gray-700">Menunggu verifikasi...</p>
               <p className="mt-1 text-xs text-gray-500">Token berlaku {expiresIn} menit</p>
             </>
           )}
